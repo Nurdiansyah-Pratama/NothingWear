@@ -427,8 +427,8 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
         )
 
         transportType == BluetoothTransportType.DUAL -> listOf(
-            GattAttemptSpec("Direct LE", BluetoothDevice.TRANSPORT_LE, false, DIRECT_CONNECT_TIMEOUT_MS),
             GattAttemptSpec("Dual/Auto Transport (BR/EDR+LE)", BluetoothDevice.TRANSPORT_AUTO, false, DIRECT_CONNECT_TIMEOUT_MS),
+            GattAttemptSpec("Direct LE", BluetoothDevice.TRANSPORT_LE, false, DIRECT_CONNECT_TIMEOUT_MS),
             GattAttemptSpec("Passive Auto-Attach (LE)", BluetoothDevice.TRANSPORT_LE, true, AUTO_ATTACH_TIMEOUT_MS),
         )
 

@@ -15,6 +15,8 @@
 - Added a 450ms Bluetooth stack cooldown between closing an active GATT handle and re-opening a new connection (prevents status `133` on MediaTek/Infinix XOS stacks).
 - Added device transport detection (`LE` / `Dual` / `Classic BR/EDR`), `GATT_SERVER` active link inspection, read-only cached Classic SDP UUID inspection (`device.uuids`), multi-step GATT transport probing (`Direct LE` → `TRANSPORT_AUTO` → `Passive Auto-Attach`), and decoded GATT status diagnostics (`GattStatusDecoder`).
 
+- Prioritized `TRANSPORT_AUTO` first for bonded Dual-mode wearables after physical verification on Infinix X6880 + Xiaomi Watch S4 (`<1s` connection to `0xFDAB` & `0x180D`), added SIG labels for `0x2A37` (Heart Rate Measurement) and `0x1124` (HID), and documented verified M2 hardware GATT/SDP observations in `docs/BLE-PROTOCOL.md`.
+
 ## [0.2.0-m1] — M1 Calendar Engine (2026-11-20)
 
 ### Added

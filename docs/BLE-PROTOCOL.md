@@ -21,6 +21,25 @@
 - **Redacted Logging & Exportable Diagnostic Report (`LogRedactor`):**
   - Masks all MAC addresses (`AA:BB:CC:DD:EE:FF` → `AA:BB:**:**:**:FF`) and embedded email strings in logs and clipboard-exported diagnostic reports.
 
+## M2 Physical Hardware Observation (Verified 2026-11-21)
+- **Test Phone:** Infinix X6880 (Android 15, API 35)
+- **Target Wearable:** Xiaomi Watch S4 (`06A3`, redacted MAC `C4:57:**:**:**:A3`, `DEVICE_TYPE_DUAL`, bonded via official Mi Fitness)
+- **Successful Transport:** `BluetoothDevice.TRANSPORT_AUTO` (GATT over BR/EDR+LE) connected in `< 1s` (`GATT_SUCCESS (0)`) without disrupting Mi Fitness pairing; `TRANSPORT_LE` direct connect timed out while already linked to Mi Fitness.
+- **Discovered GATT Services (Strict Read-Only, 0 Writes):**
+  1. `0000fdab-0000-1000-8000-00805f9b34fb` — **Xiaomi Wearable Service (`0xFDAB`)**
+     - `00000001-0000-1000-8000-00805f9b34fb` (`[READ]`)
+     - `00000002-0000-1000-8000-00805f9b34fb` (`[WRITE_NR, NOTIFY]`)
+     - `00000003-0000-1000-8000-00805f9b34fb` (`[WRITE_NR, NOTIFY]`)
+  2. `0000180d-0000-1000-8000-00805f9b34fb` — **Heart Rate Service (`0x180D`)**
+     - `00002a37-0000-1000-8000-00805f9b34fb` (`[NOTIFY]` — Heart Rate Measurement)
+- **Standard Battery (`0x180F`) & Device Info (`0x180A`):** Not exposed on Watch S4 GATT (honestly reported as `Unavailable`).
+- **Cached Classic / SDP UUIDs (`device.uuids`):**
+  - `00001101-0000-1000-8000-00805f9b34fb` — Serial Port Profile / SPP (`0x1101`)
+  - `0000110a-0000-1000-8000-00805f9b34fb` — A2DP Audio Source (`0x110A`)
+  - `0000111e-0000-1000-8000-00805f9b34fb` — Hands-Free Profile / HFP (`0x111E`)
+  - `0000111f-0000-1000-8000-00805f9b34fb` — HFP Audio Gateway (`0x111F`)
+  - `00001124-0000-1000-8000-00805f9b34fb` — Human Interface Device / HID (`0x1124`)
+
 ## M3 Scope (Comparative Research in `protocol-lab/` — Pending Approval)
 - Reference A: Xiaomi 14T (Mi Fitness Events menu available).
 - Target B: Infinix XOS 15 (same Mi Fitness version, Events menu unavailable).

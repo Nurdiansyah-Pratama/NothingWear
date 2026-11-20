@@ -28,6 +28,7 @@ object GattUuidLookup {
     const val CHAR_HARDWARE_REVISION = "00002a27-0000-1000-8000-00805f9b34fb"
     const val CHAR_SOFTWARE_REVISION = "00002a28-0000-1000-8000-00805f9b34fb"
     const val CHAR_MANUFACTURER_NAME = "00002a29-0000-1000-8000-00805f9b34fb"
+    const val CHAR_HEART_RATE_MEASUREMENT = "00002a37-0000-1000-8000-00805f9b34fb"
 
     private val serviceNames = mapOf(
         SERVICE_GENERIC_ACCESS to "Generic Access (0x1800)",
@@ -50,6 +51,7 @@ object GattUuidLookup {
         CHAR_HARDWARE_REVISION to "Hardware Revision String (0x2A27)",
         CHAR_SOFTWARE_REVISION to "Software Revision String (0x2A28)",
         CHAR_MANUFACTURER_NAME to "Manufacturer Name String (0x2A29)",
+        CHAR_HEART_RATE_MEASUREMENT to "Heart Rate Measurement (0x2A37)",
     )
 
     private val safeStandardReadOnlyCharacteristics = setOf(
@@ -78,6 +80,7 @@ object GattUuidLookup {
         "0000110e-0000-1000-8000-00805f9b34fb" to "AVRCP Controller (0x110E)",
         "0000111e-0000-1000-8000-00805f9b34fb" to "Hands-Free Profile / HFP (0x111E)",
         "0000111f-0000-1000-8000-00805f9b34fb" to "HFP Audio Gateway (0x111F)",
+        "00001124-0000-1000-8000-00805f9b34fb" to "Human Interface Device / HID (0x1124)",
         "0000112f-0000-1000-8000-00805f9b34fb" to "Phonebook Access / PBAP (0x112F)",
         "00001132-0000-1000-8000-00805f9b34fb" to "Message Access / MAP (0x1132)",
         "00001200-0000-1000-8000-00805f9b34fb" to "PnP Information (0x1200)",
