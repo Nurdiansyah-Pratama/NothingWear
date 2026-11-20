@@ -29,8 +29,11 @@ local.properties
 *.hprof
 protocol-lab/apk-analysis/**
 !protocol-lab/apk-analysis/README.md
+!protocol-lab/apk-analysis/*.py
 protocol-lab/ble-capture/**
 !protocol-lab/ble-capture/README.md
+!protocol-lab/ble-capture/*.py
+!protocol-lab/ble-capture/*.md
 
 # Secrets & Credentials
 *.jks
@@ -40,4 +43,8 @@ protocol-lab/ble-capture/**
 .env
 .env.*
 secrets.properties
+
+# Python cache
+__pycache__/
+*.py[cod]
 

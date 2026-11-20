@@ -1,0 +1,43 @@
+{
+  "collectedAtUtc": "2026-11-20T20:30:12.407065+00:00",
+  "role": "Target_B_Infinix_XOS15",
+  "serialRedacted": "REDACTED",
+  "osProperties": {
+    "ro.product.manufacturer": "INFINIX",
+    "ro.product.brand": "Infinix",
+    "ro.product.model": "Infinix X6880",
+    "ro.product.device": "Infinix-X6880",
+    "ro.build.version.release": "15",
+    "ro.build.version.sdk": "35",
+    "ro.build.display.id": "X6880-15.1.2.200(OP001PF001AZ)",
+    "ro.miui.ui.version.name": null,
+    "ro.miui.ui.version.code": null,
+    "ro.mi.os.version.name": null,
+    "ro.mi.os.version.incremental": null,
+    "ro.tranos.version": "xos15.1.2",
+    "ro.os.version": null
+  },
+  "miFitnessPackages": {
+    "com.xiaomi.wearable": {
+      "versionName": "3.60.0i",
+      "versionCode": 360000,
+      "minSdk": 26,
+      "targetSdk": 36,
+      "relevantRuntimePermissions": {
+        "android.permission.READ_CALENDAR": "true",
+        "android.permission.POST_NOTIFICATIONS": "true",
+        "android.permission.ACCESS_FINE_LOCATION": "true",
+        "android.permission.BLUETOOTH_CONNECT": "true",
+        "android.permission.ACCESS_COARSE_LOCATION": "true",
+        "android.permission.WRITE_CALENDAR": "true",
+        "android.permission.ACCESS_BACKGROUND_LOCATION": "false",
+        "android.permission.BLUETOOTH_SCAN": "true"
+      }
+    }
+  },
+  "installedCalendarPackages": [
+    "com.android.providers.calendar",
+    "com.google.android.calendar",
+    "com.sh.smart.caller"
+  ]
+}

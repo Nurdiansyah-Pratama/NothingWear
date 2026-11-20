@@ -8,6 +8,13 @@
    - Reference device (M3/M7): **Xiaomi 14T**.
    - Wearable: **Xiaomi Watch S4** (official Mi Fitness pairing preserved).
 
+## M3 Research Lab Tests (`protocol-lab/`)
+- `test_btsnoop_analyzer.py` (Python `unittest`): Verifies BTSnoop v1 binary parsing, ATT Write Command + dynamic L2CAP/RFCOMM channel extraction, dummy event marker detection (`NW_TEST_`), Shannon byte entropy encryption detection, and MAC address redaction.
+
+```powershell
+python -m unittest discover -s protocol-lab/packet-parser -p "test_*.py" -v
+```
+
 ## M0–M2 Test Coverage
 - `LogRedactorTest`: Verifies MAC address masking (colon/dash/mixed case) and email redaction in diagnostic logs.
 - `WatchS4IdentifierTest`: Verifies Xiaomi Watch S4 name matching, Xiaomi SIG Manufacturer ID (`0x038F`), Mi Service UUID (`0xFE95`), and unrelated peripheral classification.

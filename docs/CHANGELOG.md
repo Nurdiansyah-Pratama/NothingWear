@@ -1,5 +1,13 @@
 # Changelog
 
+## [M3 Research Lab] — Mi Fitness Reverse Engineering (2026-11-21)
+
+### Added (Isolated in `protocol-lab/`, zero changes to Android `:app` build)
+- Added pure-Python comparative device environment collector (`protocol-lab/ble-capture/collect_device_profile.py`) and collected redacted Target B profile (`protocol-lab/protocol-docs/target_b_infinix_xos15_profile.json` for Infinix X6880 / `xos15.1.2` / `com.xiaomi.wearable 3.60.0i`).
+- Added pure-Python read-only APK metadata & DEX symbol scanner (`protocol-lab/apk-analysis/inspect_apk_metadata.py`) and recorded SHA-256 + call-graph evidence from legitimately installed `com.xiaomi.wearable 3.60.0i` (APKs remain strictly git-ignored).
+- Added pure-Python BTSnoop v1 HCI packet parser & entropy analyzer (`protocol-lab/packet-parser/btsnoop_analyzer.py`) with 3/3 passing unit tests (`test_btsnoop_analyzer.py`) and Reference A (Xiaomi 14T) capture guide (`XIAOMI_14T_CAPTURE_GUIDE.md`).
+- Published comprehensive evidence-backed `protocol-lab/protocol-docs/M3-RESEARCH-REPORT.md` answering all 10 Master Project Plan research questions and defining honest M4 feasibility paths.
+
 ## [0.3.0-m2] — M2 Device & BLE Discovery (2026-11-20)
 
 ### Added

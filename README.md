@@ -2,7 +2,7 @@
 
 Independent, offline-first Android companion application and research workspace for **Xiaomi Watch S4**, focused on personal calendar management, BLE device diagnostics, Watch Face Studio, and ethical protocol research for enabling native Watch S4 Events synchronization on non-Xiaomi devices (primary target: **Infinix XOS 15**).
 
-> **Current Status:** `M2 — Device & BLE Discovery` complete (Android-version-aware BLE permissions, bonded/system-connected & nearby BLE discovery, Xiaomi Watch S4 heuristic identification, strict read-only GATT service/characteristic inspector, redacted diagnostic logs & report copy, Mi Fitness pairing preservation). Mi Fitness reverse engineering (`M3`), native Watch S4 Events sync (`M4`), and Watch Face Studio editor (`M5`) are not active yet.
+> **Current Status:** `M3 — Mi Fitness Reverse Engineering` complete inside isolated `protocol-lab/` (root cause of Infinix XOS 15 Events restriction confirmed in `com.xiaomi.wearable 3.60.0i`, protobuf + `WearAuthV1`/`WearAuthV2` architecture documented, pure-Python ADB profiler & BTSnoop HCI analyzer tested, Xiaomi 14T comparative capture guide ready). Android app (`app/`) remains completely clean and unaffected. Native Events Sync / Fallback (`M4`) and Watch Face Studio (`M5`) await approval.
 
 ## Tech Stack (Verified Baseline)
 

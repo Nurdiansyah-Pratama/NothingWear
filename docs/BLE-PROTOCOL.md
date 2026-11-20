@@ -1,7 +1,7 @@
 # BLE Discovery & Protocol Research (`M2` / `M3`)
 
-**M2 Status:** Implemented in `0.3.0-m2` (strict read-only BLE discovery & GATT diagnostics).  
-**M3 Status:** Pending Approval (Not started).
+**M2 Status:** Implemented in `0.3.0-m2` (strict read-only BLE discovery & GATT diagnostics, physically verified on Infinix X6880 + Xiaomi Watch S4).  
+**M3 Status:** Completed in `protocol-lab/` (see `protocol-lab/protocol-docs/M3-RESEARCH-REPORT.md`).
 
 ## M2 Implemented Capabilities (Read-Only BLE Discovery)
 - **Android-Version-Aware Permissions (`BluetoothPermissionChecker`):**
@@ -40,8 +40,9 @@
   - `0000111f-0000-1000-8000-00805f9b34fb` — HFP Audio Gateway (`0x111F`)
   - `00001124-0000-1000-8000-00805f9b34fb` — Human Interface Device / HID (`0x1124`)
 
-## M3 Scope (Comparative Research in `protocol-lab/` — Pending Approval)
-- Reference A: Xiaomi 14T (Mi Fitness Events menu available).
-- Target B: Infinix XOS 15 (same Mi Fitness version, Events menu unavailable).
-- Keep watch firmware and Mi Fitness versions constant and record exact build/version numbers in every experiment.
+## M3 Comparative Research Summary (`protocol-lab/`)
+- Full evidence report: `protocol-lab/protocol-docs/M3-RESEARCH-REPORT.md`.
+- Target B profile collected & redacted: `protocol-lab/protocol-docs/target_b_infinix_xos15_profile.json` (`Infinix X6880`, `xos15.1.2`, `com.xiaomi.wearable 3.60.0i`, `READ_CALENDAR=true`).
+- Reference A (Xiaomi 14T) capture guide & pure-Python analyzer ready: `protocol-lab/ble-capture/XIAOMI_14T_CAPTURE_GUIDE.md` & `protocol-lab/packet-parser/btsnoop_analyzer.py`.
+- Confirmed OEM whitelist gate (`FeatureItemModule` + `DeviceSettingsSyncHelperImpl`: `{Xiaomi, Vivo, Oppo, Honor}`) and authenticated encryption stack (`WearAuthV1` / `WearAuthV2`).
 - Never fabricate undocumented GATT UUIDs, framing headers, checksums, or encryption details.
