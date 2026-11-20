@@ -10,6 +10,11 @@
 - Wired live read-only BLE device status and verified standard Battery % (only when exposed) into Home Dashboard while preserving honest `PROTOCOL_UNKNOWN` Watch S4 Native Events status.
 - Added unit tests for `LogRedactor`, `WatchS4Identifier`, `GattUuidLookup`, `DevicesViewModel`, and updated `DashboardViewModelTest`.
 
+### Fixed (M2 Re-Inspect & Already-Connected Watch S4)
+- Added GATT session ID guards so stale disconnect callbacks from a closed GATT handle cannot overwrite a newly started Re-Inspect session.
+- Added a 450ms Bluetooth stack cooldown between closing an active GATT handle and re-opening a new connection (prevents status `133` on MediaTek/Infinix XOS stacks).
+- Added device transport detection (`LE` / `Dual` / `Classic BR/EDR`), smart Passive Auto-Attach (`autoConnect=true`) for OS-connected Mi Fitness links, single automatic fallback from Direct LE to Passive Auto-Attach on status `133`/`8`/`62`/`257` or timeout, and decoded GATT status diagnostics (`GattStatusDecoder`).
+
 ## [0.2.0-m1] — M1 Calendar Engine (2026-11-20)
 
 ### Added

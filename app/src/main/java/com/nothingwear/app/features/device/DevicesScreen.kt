@@ -813,7 +813,7 @@ private fun DiscoveredDeviceCard(
         Spacer(modifier = Modifier.height(NothingSpacing.xs))
 
         Text(
-            text = "${device.redactedAddress} · ${device.source.label}" +
+            text = "${device.redactedAddress} · ${device.transportType.label} · ${device.source.label}" +
                 (device.rssi?.let { " · $it dBm" } ?: "") +
                 if (device.isBonded) " · Bonded" else "",
             style = MaterialTheme.typography.labelSmall,

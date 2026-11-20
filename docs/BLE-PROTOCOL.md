@@ -12,8 +12,10 @@
   - Lists **System GATT Connected** (`BluetoothProfile.GATT`) and **Paired / Bonded** devices alongside **Nearby BLE Scan** results (15s auto-timeout) so Xiaomi Watch S4 paired via Mi Fitness remains visible even when not actively advertising.
 - **Evidence-Based Heuristic Identification (`WatchS4Identifier`):**
   - Classifies peripherals into `Likely Watch S4` (name match), `Xiaomi Device` (Xiaomi SIG Manufacturer ID `0x038F`, Huami `0x0157`, or advertised Mi Service `0xFE95` / `0xFDAB`), or `BLE Peripheral`.
-- **Strict Read-Only GATT Inspector (`GattUuidLookup`):**
+- **Strict Read-Only GATT Inspector (`GattUuidLookup` & `GattStatusDecoder`):**
   - Zero GATT characteristic writes, zero descriptor writes, zero unknown commands.
+  - Guarded with session IDs and a 450ms reconnect cooldown so stale disconnect callbacks from an earlier GATT handle never corrupt a re-inspect attempt.
+  - Detects Classic BR/EDR-only entries vs Dual/BLE devices, prefers Passive Auto-Attach (`autoConnect=true`) when the OS already holds a GATT link (e.g., via Mi Fitness), and falls back once from Direct LE to Passive Auto-Attach on status `133`/`8`/`62`/`257` or timeout.
   - Sequential read-only reads are whitelisted **exclusively** to standard Bluetooth SIG Battery Level (`0x2A19`) and Device Information strings (`0x2A24`, `0x2A26`, `0x2A27`, `0x2A28`, `0x2A29`) when exposed with `PROPERTY_READ`.
   - Always cleanly disconnects & closes `BluetoothGatt` to preserve official Mi Fitness pairing.
 - **Redacted Logging & Exportable Diagnostic Report (`LogRedactor`):**

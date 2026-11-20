@@ -14,6 +14,13 @@ enum class DiscoveredDeviceSource(val label: String) {
     SYSTEM_CONNECTED("System GATT"),
 }
 
+enum class BluetoothTransportType(val label: String) {
+    LE("BLE"),
+    DUAL("Dual (Classic+BLE)"),
+    CLASSIC("Classic BR/EDR"),
+    UNKNOWN("Unknown"),
+}
+
 /**
  * Represents a discovered or already-paired BLE device.
  * UI & logs MUST display [redactedAddress], never raw MAC addresses.
@@ -25,6 +32,7 @@ data class BleDeviceSummary(
     val rssi: Int?,
     val isBonded: Boolean,
     val isSystemConnected: Boolean,
+    val transportType: BluetoothTransportType = BluetoothTransportType.UNKNOWN,
     val source: DiscoveredDeviceSource,
     val matchConfidence: WatchMatchConfidence,
     val matchReason: String,
