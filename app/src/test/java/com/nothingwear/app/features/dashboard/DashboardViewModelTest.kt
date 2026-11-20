@@ -3,13 +3,18 @@ package com.nothingwear.app.features.dashboard
 import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.core.permissions.CalendarPermissionChecker
 import com.nothingwear.app.data.repository.FoundationDashboardRepository
+import com.nothingwear.app.domain.model.BleDiagnosticsSnapshot
+import com.nothingwear.app.domain.model.BluetoothAdapterStatus
 import com.nothingwear.app.domain.model.CalendarEvent
 import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
 import com.nothingwear.app.domain.model.CalendarSyncState
+import com.nothingwear.app.domain.model.GattInspectionSession
+import com.nothingwear.app.domain.model.StandardDeviceInfo
 import com.nothingwear.app.domain.model.WatchConnectionState
 import com.nothingwear.app.domain.repository.CalendarRepository
+import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.usecase.ObserveDashboardOverviewUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,6 +59,9 @@ class DashboardViewModelTest {
     fun dashboardPromptsForPermissionWhenUncachedAndKeepsWatchStatesHonest() = runTest {
         val repository = FoundationDashboardRepository(
             calendarRepository = StubCalendarRepository(emptyList(), CalendarSyncMetadata()),
+            deviceDiagnosticsRepository = StubDeviceDiagnosticsRepository(
+                BleDiagnosticsSnapshot(adapterStatus = BluetoothAdapterStatus.ENABLED),
+            ),
             permissionChecker = CalendarPermissionChecker { false },
             timeProvider = fixedTime,
         )
@@ -72,7 +80,7 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun dashboardSurfacesCachedTodayAndUpcomingEventsWhileKeepingWatchSyncHonest() = runTest {
+    fun dashboardSurfacesCachedEventsAndVerifiedStandardBatteryWhenReadOnlyGattIsActive() = runTest {
         val todayEvent = CalendarEvent(
             instanceKey = "1_today",
             eventId = 1L,
@@ -114,6 +122,18 @@ class DashboardViewModelTest {
                     cachedEventCount = 2,
                 ),
             ),
+            deviceDiagnosticsRepository = StubDeviceDiagnosticsRepository(
+                BleDiagnosticsSnapshot(
+                    adapterStatus = BluetoothAdapterStatus.ENABLED,
+                    gattSession = GattInspectionSession(
+                        deviceAddressKey = "AA:BB:CC:DD:EE:FF",
+                        deviceName = "Xiaomi Watch S4",
+                        redactedAddress = "AA:BB:**:**:**:FF",
+                        connectionState = WatchConnectionState.PROTOCOL_UNKNOWN,
+                        standardDeviceInfo = StandardDeviceInfo(batteryPercent = 84),
+                    ),
+                ),
+            ),
             permissionChecker = CalendarPermissionChecker { true },
             timeProvider = fixedTime,
         )
@@ -127,8 +147,8 @@ class DashboardViewModelTest {
         assertEquals("Morning Sync", overview.calendarOverview.todayEvents.first().title)
         assertEquals(1, overview.calendarOverview.upcomingEvents.size)
         assertEquals("Watch Research Notes", overview.calendarOverview.upcomingEvents.first().title)
-        assertEquals(WatchConnectionState.DISCONNECTED, overview.deviceStatus.connectionState)
-        assertNull(overview.deviceStatus.batteryPercent)
+        assertEquals(WatchConnectionState.PROTOCOL_UNKNOWN, overview.deviceStatus.connectionState)
+        assertEquals(84, overview.deviceStatus.batteryPercent)
         assertEquals(WatchConnectionState.PROTOCOL_UNKNOWN, overview.calendarOverview.nativeWatchSyncState)
     }
 
@@ -142,5 +162,18 @@ class DashboardViewModelTest {
         override fun observeSyncMetadata(): Flow<CalendarSyncMetadata> = flowOf(metadata)
         override suspend fun syncFromDevice(): CalendarSyncResult = CalendarSyncResult.PermissionDenied
         override suspend fun setCalendarSelected(calendarId: Long, selected: Boolean) = Unit
+    }
+
+    private class StubDeviceDiagnosticsRepository(
+        private val snapshot: BleDiagnosticsSnapshot,
+    ) : DeviceDiagnosticsRepository {
+        override fun observeDiagnostics(): Flow<BleDiagnosticsSnapshot> = flowOf(snapshot)
+        override fun refreshEnvironmentAndBondedDevices() = Unit
+        override fun startBleScan() = Unit
+        override fun stopBleScan() = Unit
+        override fun inspectDeviceGatt(addressKey: String) = Unit
+        override fun disconnectGatt() = Unit
+        override fun clearLogs() = Unit
+        override fun buildRedactedDiagnosticReport(): String = ""
     }
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0-m2] — M2 Device & BLE Discovery (2026-11-20)
+
+### Added
+- Declared Android-version-aware BLE permissions in `AndroidManifest.xml` (`BLUETOOTH_SCAN` with `neverForLocation` & `BLUETOOTH_CONNECT` on Android 12+, legacy `BLUETOOTH`/`BLUETOOTH_ADMIN`/`ACCESS_FINE_LOCATION` capped at `maxSdkVersion="30"`, optional BLE feature flag; no `BLUETOOTH_ADVERTISE` or `POST_NOTIFICATIONS`).
+- Implemented `BluetoothPermissionChecker`, `LogRedactor`, `WatchS4Identifier`, and `GattUuidLookup` (with strict read-only standard Bluetooth SIG whitelist).
+- Implemented `AndroidBleDiagnosticsRepository` supporting system-connected GATT & bonded device listing alongside 15-second auto-timeout BLE scanning, strict read-only GATT service/characteristic discovery, sequential standard Battery/DIS reads when exposed, clean GATT disconnect/close, redacted diagnostic logs, and copyable redacted diagnostic reports.
+- Built full `DevicesScreen` with permission rationale, Bluetooth enable prompt, Xiaomi/Paired filter, expandable GATT service/characteristic tree, live redacted diagnostic console, and Mi Fitness coexistence troubleshooting notes.
+- Wired live read-only BLE device status and verified standard Battery % (only when exposed) into Home Dashboard while preserving honest `PROTOCOL_UNKNOWN` Watch S4 Native Events status.
+- Added unit tests for `LogRedactor`, `WatchS4Identifier`, `GattUuidLookup`, `DevicesViewModel`, and updated `DashboardViewModelTest`.
+
 ## [0.2.0-m1] — M1 Calendar Engine (2026-11-20)
 
 ### Added

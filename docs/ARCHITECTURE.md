@@ -18,26 +18,28 @@ app/src/main/java/com/nothingwear/app/
 ├── MainViewModel.kt                 # Exposes reactive AppThemePreferences
 ├── core/
 │   ├── common/                      # Coroutine dispatcher qualifiers, TimeProvider & Hilt modules
+│   ├── bluetooth/                   # LogRedactor, WatchS4Identifier, GattUuidLookup (strict read-only whitelist)
 │   ├── database/                    # Room NothingWearDatabase (calendar_accounts, calendar_events)
-│   ├── permissions/                 # CalendarPermissionChecker (READ_CALENDAR)
+│   ├── permissions/                 # CalendarPermissionChecker (M1) & BluetoothPermissionChecker (M2)
 │   └── designsystem/
 │       ├── theme/                   # Color, AccentSpec, Spacing, Radius, Type, Theme
 │       └── component/               # NothingSurfaceCard, NothingStatusBadge, Headers, Placeholders
 ├── domain/                          # Pure Kotlin — zero Android/Compose dependencies
-│   ├── model/                       # ThemePreferences, CalendarModels, DeviceStatus, DashboardOverview
-│   ├── repository/                  # ThemePreferencesRepository, CalendarRepository, DashboardRepository
-│   ├── usecase/                     # Theme preferences, Calendar sync/observe/filter, Dashboard overview
+│   ├── model/                       # ThemePreferences, CalendarModels, BleModels, DeviceStatus, DashboardOverview
+│   ├── repository/                  # ThemePreferencesRepository, CalendarRepository, DeviceDiagnosticsRepository, DashboardRepository
+│   ├── usecase/                     # Theme, Calendar, BLE diagnostics & Dashboard use cases
 │   └── util/                        # AgendaTimeWindows (window math & UTC all-day normalization)
 ├── data/
 │   ├── calendar/                    # AndroidCalendarDataSource (CalendarContract.Calendars & Instances)
+│   ├── device/                      # AndroidBleDiagnosticsRepository (read-only BLE scan, GATT inspector, redacted logs)
 │   ├── preferences/                 # DataStoreThemePreferencesRepository
 │   ├── repository/                  # OfflineFirstCalendarRepository, FoundationDashboardRepository
 │   └── di/                          # Hilt bindings & DataStore provider
 ├── features/
-│   ├── dashboard/                   # Home screen (live Today/Upcoming agenda + honest M2/M4 status)
+│   ├── dashboard/                   # Home screen (live Today/Upcoming agenda + live read-only BLE status)
 │   ├── calendar/                    # M1 Calendar Engine (agenda, search, calendar filter, EventDetailScreen)
 │   ├── watchface/                   # M5 Watch Face Studio placeholder
-│   ├── device/                      # M2/M4/M6 Device, BLE Diagnostics & Health placeholder
+│   ├── device/                      # M2 Device & BLE Discovery (scan, Watch S4 matcher, read-only GATT inspector, redacted logs)
 │   └── settings/                    # Theme Mode & Accent customization + App metadata
 └── navigation/
     ├── NothingWearDestination.kt    # 5 top-level tabs: Home, Calendar, Studio, Devices, Settings

@@ -29,7 +29,7 @@ import androidx.navigation.navArgument
 import com.nothingwear.app.features.calendar.CalendarRoute
 import com.nothingwear.app.features.calendar.EventDetailRoute
 import com.nothingwear.app.features.dashboard.DashboardRoute
-import com.nothingwear.app.features.device.DevicesScreen
+import com.nothingwear.app.features.device.DevicesRoute
 import com.nothingwear.app.features.settings.SettingsRoute
 import com.nothingwear.app.features.watchface.WatchFaceStudioScreen
 
@@ -148,7 +148,7 @@ fun NothingWearApp(
                 WatchFaceStudioScreen()
             }
             composable(NothingWearDestination.DEVICES.route) {
-                DevicesScreen()
+                DevicesRoute()
             }
             composable(NothingWearDestination.SETTINGS.route) {
                 SettingsRoute()

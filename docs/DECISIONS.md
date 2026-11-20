@@ -41,3 +41,10 @@
 - **Context:** Recurring events in Google Calendar are stored as RRULEs in `CalendarContract.Events` and require expansion; all-day events are stored as UTC midnight timestamps, which can bleed across adjacent days in non-UTC timezones (e.g., WIB `UTC+7`).
 - **Decision:** Query `CalendarContract.Instances` across a padded window (`[today - 1d .. today + 31d]`), normalize `isAllDay` events in `ZoneOffset.UTC` before projecting to the device `ZoneId`, cache selected calendars and instances in Room `2.8.5` with exported schemas (`app/schemas/`), and preserve per-calendar user toggles across re-syncs.
 - **Consequences:** Accurate recurring and all-day agenda rendering offline on Infinix XOS 15 without manual RRULE parsing.
+
+## ADR-007: Native Android BLE APIs + Strict Read-Only GATT Whitelist + MAC Redaction (M2)
+- **Date:** 2026-11-20
+- **Status:** Accepted
+- **Context:** M2 requires BLE discovery, Xiaomi Watch S4 identification, and GATT inspection without interfering with official Mi Fitness pairing or adding unnecessary third-party BLE wrappers.
+- **Decision:** Use native Android `BluetoothManager` / `BluetoothLeScanner` / `BluetoothGatt` with `neverForLocation` on Android 12+, list both bonded/system-GATT-connected devices and active 15s BLE scan results, whitelist auto-reads strictly to standard Bluetooth SIG Battery (`0x2A19`) and Device Information (`0x180A`) characteristics with zero GATT writes, and redact all MAC addresses via `LogRedactor`.
+- **Consequences:** Zero extra BLE library bloat, safe coexistence with Mi Fitness, and privacy-safe diagnostic reports ready to assist M3 research.

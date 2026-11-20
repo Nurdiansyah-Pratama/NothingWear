@@ -1,9 +1,11 @@
 package com.nothingwear.app.data.repository
 
+import com.nothingwear.app.core.bluetooth.WatchMatchConfidence
 import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.core.permissions.CalendarPermissionChecker
 import com.nothingwear.app.domain.model.AgendaItem
 import com.nothingwear.app.domain.model.AgendaRange
+import com.nothingwear.app.domain.model.BluetoothAdapterStatus
 import com.nothingwear.app.domain.model.CalendarEvent
 import com.nothingwear.app.domain.model.CalendarOverview
 import com.nothingwear.app.domain.model.CalendarSyncState
@@ -12,6 +14,7 @@ import com.nothingwear.app.domain.model.DeviceStatusSummary
 import com.nothingwear.app.domain.model.WatchConnectionState
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DashboardRepository
+import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.util.AgendaTimeWindows
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -20,24 +23,25 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * M1 implementation of [DashboardRepository].
+ * M2 implementation of [DashboardRepository].
  *
- * Combines live Room-backed local calendar data with honest uninitialized states for
- * BLE discovery (M2) and native Watch S4 event sync (M3/M4).
+ * Combines live Room-backed local calendar data with live read-only BLE diagnostic state
+ * while keeping native Watch S4 event sync honestly marked as PROTOCOL_UNKNOWN (M3/M4).
  */
 @Singleton
 class FoundationDashboardRepository @Inject constructor(
     private val calendarRepository: CalendarRepository,
+    private val deviceDiagnosticsRepository: DeviceDiagnosticsRepository,
     private val permissionChecker: CalendarPermissionChecker,
     private val timeProvider: TimeProvider,
 ) : DashboardRepository {
 
-    // TODO(M2): Combine live read-only BLE discovery/GATT status flow from DeviceRepository.
     // TODO(M4): Combine verified protocol-adapter state once M3 reverse engineering is complete.
     override fun observeDashboardOverview(): Flow<DashboardOverview> = combine(
         calendarRepository.observeSelectedEvents(),
         calendarRepository.observeSyncMetadata(),
-    ) { selectedEvents, metadata ->
+        deviceDiagnosticsRepository.observeDiagnostics(),
+    ) { selectedEvents, metadata, bleSnapshot ->
         val nowMillis = timeProvider.nowMillis()
         val zoneId = timeProvider.zoneId()
         val today = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
@@ -84,14 +88,49 @@ class FoundationDashboardRepository @Inject constructor(
             }
         }
 
-        DashboardOverview(
-            deviceStatus = DeviceStatusSummary(
+        val session = bleSnapshot.gattSession
+        val detectedWatch = bleSnapshot.devices.firstOrNull {
+            it.matchConfidence == WatchMatchConfidence.LIKELY_WATCH_S4 ||
+                it.matchConfidence == WatchMatchConfidence.XIAOMI_ECOSYSTEM
+        }
+
+        val deviceStatus = when {
+            bleSnapshot.adapterStatus == BluetoothAdapterStatus.UNSUPPORTED -> DeviceStatusSummary(
                 targetDeviceName = "Xiaomi Watch S4",
-                connectionState = WatchConnectionState.DISCONNECTED,
-                statusDetail = "BLE discovery not yet enabled (planned in M2). Mi Fitness pairing is untouched.",
+                connectionState = WatchConnectionState.UNSUPPORTED,
+                statusDetail = "Bluetooth Low Energy is not supported on this hardware.",
                 batteryPercent = null,
                 bleDiscoveryAvailable = false,
-            ),
+            )
+
+            session.deviceAddressKey != null && session.connectionState != WatchConnectionState.DISCONNECTED -> DeviceStatusSummary(
+                targetDeviceName = session.deviceName ?: "Xiaomi Watch S4",
+                connectionState = session.connectionState,
+                statusDetail = session.lastStatusNote
+                    ?: "Read-only GATT session active (${session.services.size} services discovered).",
+                batteryPercent = session.standardDeviceInfo.batteryPercent,
+                bleDiscoveryAvailable = true,
+            )
+
+            detectedWatch != null -> DeviceStatusSummary(
+                targetDeviceName = detectedWatch.displayName,
+                connectionState = WatchConnectionState.DISCONNECTED,
+                statusDetail = "Detected (${detectedWatch.source.label} · ${detectedWatch.matchConfidence.label}). Open Devices tab for read-only GATT inspection.",
+                batteryPercent = null,
+                bleDiscoveryAvailable = true,
+            )
+
+            else -> DeviceStatusSummary(
+                targetDeviceName = "Xiaomi Watch S4",
+                connectionState = WatchConnectionState.DISCONNECTED,
+                statusDetail = "Read-only BLE discovery ready in Devices tab. Official Mi Fitness pairing is preserved.",
+                batteryPercent = null,
+                bleDiscoveryAvailable = true,
+            )
+        }
+
+        DashboardOverview(
+            deviceStatus = deviceStatus,
             calendarOverview = CalendarOverview(
                 localCalendarState = localState,
                 localStatusMessage = localMessage,
@@ -100,7 +139,7 @@ class FoundationDashboardRepository @Inject constructor(
                 todayEvents = todayEvents,
                 upcomingEvents = upcomingEvents,
             ),
-            currentMilestone = "M1 · Calendar",
+            currentMilestone = "M2 · BLE Diagnostics",
         )
     }
 

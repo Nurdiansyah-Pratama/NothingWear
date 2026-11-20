@@ -3,11 +3,33 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-        M1 (Calendar Engine): READ_CALENDAR only.
-        WRITE_CALENDAR is intentionally NOT requested.
-        BLUETOOTH_SCAN / BLUETOOTH_CONNECT will be introduced in M2.
+        M1 (Calendar Engine): READ_CALENDAR only (no WRITE_CALENDAR).
+        M2 (Device & BLE Discovery): Android-version-aware BLE scan & connect permissions.
+        BLUETOOTH_ADVERTISE and POST_NOTIFICATIONS are intentionally NOT requested.
     -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+
+    <!-- Android 12+ (API 31+) BLE permissions without location derivation -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Android 8.0–11 (API 26–30) legacy BLE permissions -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
 
     <application
         android:name=".NothingWearApplication"

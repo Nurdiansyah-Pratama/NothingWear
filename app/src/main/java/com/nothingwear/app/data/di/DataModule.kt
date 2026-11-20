@@ -7,11 +7,13 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.nothingwear.app.data.calendar.AndroidCalendarDataSource
 import com.nothingwear.app.data.calendar.DeviceCalendarDataSource
+import com.nothingwear.app.data.device.AndroidBleDiagnosticsRepository
 import com.nothingwear.app.data.preferences.DataStoreThemePreferencesRepository
 import com.nothingwear.app.data.repository.FoundationDashboardRepository
 import com.nothingwear.app.data.repository.OfflineFirstCalendarRepository
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DashboardRepository
+import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.repository.ThemePreferencesRepository
 import dagger.Binds
 import dagger.Module
@@ -48,6 +50,12 @@ abstract class DataBindingsModule {
     abstract fun bindCalendarRepository(
         impl: OfflineFirstCalendarRepository,
     ): CalendarRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDeviceDiagnosticsRepository(
+        impl: AndroidBleDiagnosticsRepository,
+    ): DeviceDiagnosticsRepository
 }
 
 @Module

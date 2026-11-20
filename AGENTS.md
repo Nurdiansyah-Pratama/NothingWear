@@ -63,8 +63,8 @@ Request permissions only when the corresponding milestone feature is active:
 ## 6. Current Milestone Status
 
 - **M0 — Project Foundation:** Completed & approved.
-- **M1 — Calendar Engine:** Completed (pending user verification & approval to start M2).
-- **M2 — Device & BLE Discovery:** Not started.
+- **M1 — Calendar Engine:** Completed & approved.
+- **M2 — Device & BLE Discovery:** Completed (pending user verification & approval to start M3).
 - **M3 — Mi Fitness Reverse Engineering:** Not started.
 - **M4 — Native Events Synchronization:** Not started.
 - **M5 — Watch Face Studio:** Not started.
