@@ -37,6 +37,7 @@ data class BleDeviceSummary(
     val matchConfidence: WatchMatchConfidence,
     val matchReason: String,
     val advertisedServiceUuids: List<String> = emptyList(),
+    val sdpUuids: List<String> = emptyList(),
     val lastSeenAtMillis: Long,
 )
 
@@ -70,6 +71,7 @@ data class GattInspectionSession(
     val redactedAddress: String? = null,
     val connectionState: WatchConnectionState = WatchConnectionState.DISCONNECTED,
     val services: List<GattServiceInfo> = emptyList(),
+    val sdpUuids: List<String> = emptyList(),
     val standardDeviceInfo: StandardDeviceInfo = StandardDeviceInfo(),
     val lastStatusNote: String? = null,
 )

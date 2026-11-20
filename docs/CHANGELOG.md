@@ -13,7 +13,7 @@
 ### Fixed (M2 Re-Inspect & Already-Connected Watch S4)
 - Added GATT session ID guards so stale disconnect callbacks from a closed GATT handle cannot overwrite a newly started Re-Inspect session.
 - Added a 450ms Bluetooth stack cooldown between closing an active GATT handle and re-opening a new connection (prevents status `133` on MediaTek/Infinix XOS stacks).
-- Added device transport detection (`LE` / `Dual` / `Classic BR/EDR`), smart Passive Auto-Attach (`autoConnect=true`) for OS-connected Mi Fitness links, single automatic fallback from Direct LE to Passive Auto-Attach on status `133`/`8`/`62`/`257` or timeout, and decoded GATT status diagnostics (`GattStatusDecoder`).
+- Added device transport detection (`LE` / `Dual` / `Classic BR/EDR`), `GATT_SERVER` active link inspection, read-only cached Classic SDP UUID inspection (`device.uuids`), multi-step GATT transport probing (`Direct LE` → `TRANSPORT_AUTO` → `Passive Auto-Attach`), and decoded GATT status diagnostics (`GattStatusDecoder`).
 
 ## [0.2.0-m1] — M1 Calendar Engine (2026-11-20)
 

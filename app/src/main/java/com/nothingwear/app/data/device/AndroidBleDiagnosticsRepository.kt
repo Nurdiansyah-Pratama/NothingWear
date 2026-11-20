@@ -124,9 +124,14 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
             val connectedGattDevices = bluetoothManager
                 ?.getConnectedDevices(BluetoothProfile.GATT)
                 .orEmpty()
-            val connectedGattAddresses = connectedGattDevices.map { it.address }.toSet()
+            val connectedGattServerDevices = bluetoothManager
+                ?.getConnectedDevices(BluetoothProfile.GATT_SERVER)
+                .orEmpty()
+            val connectedAllGatt = (connectedGattDevices + connectedGattServerDevices)
+                .distinctBy { it.address }
+            val connectedGattAddresses = connectedAllGatt.map { it.address }.toSet()
 
-            connectedGattDevices.forEach { device ->
+            connectedAllGatt.forEach { device ->
                 upsertDeviceFromBluetoothDevice(
                     device = device,
                     source = DiscoveredDeviceSource.SYSTEM_CONNECTED,
@@ -158,7 +163,7 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
             publishSortedDevices()
             appendLog(
                 level = DiagnosticLogLevel.INFO,
-                rawMessage = "Checked bonded/system-connected devices (${discoveredDevices.size} listed; ${connectedGattAddresses.size} active OS GATT links).",
+                rawMessage = "Checked bonded/system devices (${discoveredDevices.size} listed; OS GATT=${connectedGattDevices.size}, GATT_SERVER=${connectedGattServerDevices.size}).",
             )
         } catch (se: SecurityException) {
             appendLog(
@@ -334,8 +339,11 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
         } ?: return
 
         val transportType = mapTransportType(remoteDevice.type)
+        val cachedSdpUuids = readCachedSdpUuids(remoteDevice)
         val osGattConnected = try {
             bluetoothManager?.getConnectionState(remoteDevice, BluetoothProfile.GATT) ==
+                BluetoothProfile.STATE_CONNECTED ||
+                bluetoothManager?.getConnectionState(remoteDevice, BluetoothProfile.GATT_SERVER) ==
                 BluetoothProfile.STATE_CONNECTED
         } catch (_: Exception) {
             false
@@ -343,10 +351,10 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
 
         if (transportType == BluetoothTransportType.CLASSIC && !osGattConnected) {
             val classicNote = "This Bluetooth entry is Classic BR/EDR only (calls/audio) and does not expose BLE GATT. " +
-                "Run 'Start BLE Scan' to check if Watch S4 exposes a separate BLE advertisement, or inspect the System GATT entry."
+                "Cached SDP UUIDs (${cachedSdpUuids.size}) are shown below."
             appendLog(
                 level = DiagnosticLogLevel.WARN,
-                rawMessage = "$displayName [$redacted] reported DEVICE_TYPE_CLASSIC (not LE/DUAL). $classicNote",
+                rawMessage = "$displayName [$redacted] reported DEVICE_TYPE_CLASSIC (SDP UUIDs=${cachedSdpUuids.size}).",
             )
             _diagnostics.update {
                 it.copy(
@@ -355,6 +363,7 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                         deviceName = displayName,
                         redactedAddress = redacted,
                         connectionState = WatchConnectionState.UNSUPPORTED,
+                        sdpUuids = cachedSdpUuids,
                         lastStatusNote = classicNote,
                     ),
                 )
@@ -362,9 +371,10 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
             return
         }
 
-        // If OS already has an active GATT link (e.g. Mi Fitness), autoConnect=true attaches
-        // cleanly without sending a conflicting direct LE connect command.
-        val preferAutoAttachFirst = osGattConnected || summary?.isSystemConnected == true
+        val attempts = buildGattAttemptPlan(
+            transportType = transportType,
+            osGattConnected = osGattConnected || summary?.isSystemConnected == true,
+        )
 
         _diagnostics.update {
             it.copy(
@@ -374,11 +384,12 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                     redactedAddress = redacted,
                     connectionState = WatchConnectionState.CONNECTING,
                     services = emptyList(),
+                    sdpUuids = cachedSdpUuids,
                     standardDeviceInfo = StandardDeviceInfo(),
                     lastStatusNote = if (hadActiveGatt) {
                         "Resetting previous GATT handle before re-inspecting (${transportType.label})..."
                     } else {
-                        "Opening read-only GATT session (${transportType.label}, OS GATT=${if (osGattConnected) "connected" else "idle"})..."
+                        "Opening read-only GATT session (${transportType.label}, SDP UUIDs=${cachedSdpUuids.size})..."
                     },
                 ),
             )
@@ -386,7 +397,7 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
 
         appendLog(
             level = DiagnosticLogLevel.INFO,
-            rawMessage = "Inspecting $displayName [$redacted] | type=${transportType.label} | bonded=${summary?.isBonded == true} | osGattConnected=$osGattConnected | cooldown=${if (hadActiveGatt) "${RECONNECT_COOLDOWN_MS}ms" else "0ms"}",
+            rawMessage = "Inspecting $displayName [$redacted] | type=${transportType.label} | bonded=${summary?.isBonded == true} | osGatt=$osGattConnected | sdpUuids=${cachedSdpUuids.size}",
         )
 
         connectJob = scope.launch {
@@ -400,10 +411,31 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                 remoteDevice = remoteDevice,
                 displayName = displayName,
                 redacted = redacted,
-                autoConnect = preferAutoAttachFirst,
-                allowFallback = !preferAutoAttachFirst,
+                attempts = attempts,
+                attemptIndex = 0,
             )
         }
+    }
+
+    private fun buildGattAttemptPlan(
+        transportType: BluetoothTransportType,
+        osGattConnected: Boolean,
+    ): List<GattAttemptSpec> = when {
+        osGattConnected -> listOf(
+            GattAttemptSpec("Passive Auto-Attach (LE)", BluetoothDevice.TRANSPORT_LE, true, AUTO_ATTACH_TIMEOUT_MS),
+            GattAttemptSpec("Dual/Auto Transport", BluetoothDevice.TRANSPORT_AUTO, false, DIRECT_CONNECT_TIMEOUT_MS),
+        )
+
+        transportType == BluetoothTransportType.DUAL -> listOf(
+            GattAttemptSpec("Direct LE", BluetoothDevice.TRANSPORT_LE, false, DIRECT_CONNECT_TIMEOUT_MS),
+            GattAttemptSpec("Dual/Auto Transport (BR/EDR+LE)", BluetoothDevice.TRANSPORT_AUTO, false, DIRECT_CONNECT_TIMEOUT_MS),
+            GattAttemptSpec("Passive Auto-Attach (LE)", BluetoothDevice.TRANSPORT_LE, true, AUTO_ATTACH_TIMEOUT_MS),
+        )
+
+        else -> listOf(
+            GattAttemptSpec("Direct LE", BluetoothDevice.TRANSPORT_LE, false, DIRECT_CONNECT_TIMEOUT_MS),
+            GattAttemptSpec("Passive Auto-Attach (LE)", BluetoothDevice.TRANSPORT_LE, true, AUTO_ATTACH_TIMEOUT_MS),
+        )
     }
 
     @SuppressLint("MissingPermission")
@@ -412,15 +444,18 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
         remoteDevice: BluetoothDevice,
         displayName: String,
         redacted: String,
-        autoConnect: Boolean,
-        allowFallback: Boolean,
+        attempts: List<GattAttemptSpec>,
+        attemptIndex: Int,
     ) {
         if (activeSessionId.get() != sessionId) return
+        val spec = attempts.getOrNull(attemptIndex) ?: return
+        val hasNextAttempt = attemptIndex + 1 < attempts.size
+        val stepTag = "${attemptIndex + 1}/${attempts.size}"
+        val strategyLabel = "${spec.label} [$stepTag]"
 
-        val strategyLabel = if (autoConnect) "Passive Auto-Attach (autoConnect=true)" else "Direct LE (autoConnect=false)"
         appendLog(
             level = DiagnosticLogLevel.INFO,
-            rawMessage = "Attempt [$strategyLabel] -> $displayName [$redacted]",
+            rawMessage = "Attempt $strategyLabel -> $displayName [$redacted]",
         )
         _diagnostics.update {
             it.copy(
@@ -434,7 +469,6 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, statusCode: Int, newState: Int) {
                 if (activeSessionId.get() != sessionId) {
-                    // Ignore stale callback from an earlier GATT handle and ensure it is closed.
                     runCatching { gatt.close() }
                     return
                 }
@@ -479,10 +513,10 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                         runCatching { gatt.close() }
 
                         val decodedStatus = GattStatusDecoder.describeStatus(statusCode)
-                        if (allowFallback && GattStatusDecoder.shouldFallbackToAutoAttach(statusCode)) {
+                        if (hasNextAttempt && GattStatusDecoder.shouldFallbackToAutoAttach(statusCode)) {
                             appendLog(
                                 level = DiagnosticLogLevel.WARN,
-                                rawMessage = "$strategyLabel disconnected ($decodedStatus). Waiting ${RECONNECT_COOLDOWN_MS}ms then retrying with Passive Auto-Attach...",
+                                rawMessage = "$strategyLabel disconnected ($decodedStatus). Waiting ${RECONNECT_COOLDOWN_MS}ms before next strategy...",
                             )
                             connectJob = scope.launch {
                                 delay(RECONNECT_COOLDOWN_MS)
@@ -492,8 +526,8 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                                         remoteDevice = remoteDevice,
                                         displayName = displayName,
                                         redacted = redacted,
-                                        autoConnect = true,
-                                        allowFallback = false,
+                                        attempts = attempts,
+                                        attemptIndex = attemptIndex + 1,
                                     )
                                 }
                             }
@@ -572,7 +606,7 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                 val totalChars = mappedServices.sumOf { it.characteristics.size }
                 appendLog(
                     level = DiagnosticLogLevel.INFO,
-                    rawMessage = "Discovered ${mappedServices.size} GATT services / $totalChars characteristics on $displayName [$redacted] (read-only; 0 writes).",
+                    rawMessage = "Discovered ${mappedServices.size} GATT services / $totalChars characteristics on $displayName [$redacted] via $strategyLabel (read-only; 0 writes).",
                 )
 
                 _diagnostics.update {
@@ -631,26 +665,34 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
 
         try {
             @Suppress("DEPRECATION")
-            activeGatt = remoteDevice.connectGatt(
-                context,
-                autoConnect,
-                callback,
-                BluetoothDevice.TRANSPORT_LE,
-                BluetoothDevice.PHY_LE_1M_MASK,
-            )
+            activeGatt = if (spec.transport == BluetoothDevice.TRANSPORT_LE) {
+                remoteDevice.connectGatt(
+                    context,
+                    spec.autoConnect,
+                    callback,
+                    BluetoothDevice.TRANSPORT_LE,
+                    BluetoothDevice.PHY_LE_1M_MASK,
+                )
+            } else {
+                remoteDevice.connectGatt(
+                    context,
+                    spec.autoConnect,
+                    callback,
+                    spec.transport,
+                )
+            }
 
             connectTimeoutJob?.cancel()
-            val timeoutMs = if (autoConnect) AUTO_ATTACH_TIMEOUT_MS else DIRECT_CONNECT_TIMEOUT_MS
             connectTimeoutJob = scope.launch {
-                delay(timeoutMs)
+                delay(spec.timeoutMs)
                 if (activeSessionId.get() != sessionId) return@launch
                 if (_diagnostics.value.gattSession.connectionState != WatchConnectionState.CONNECTING) return@launch
 
                 closeActiveGatt(silent = true)
-                if (allowFallback) {
+                if (hasNextAttempt) {
                     appendLog(
                         level = DiagnosticLogLevel.WARN,
-                        rawMessage = "$strategyLabel timed out after ${timeoutMs / 1000}s. Retrying via Passive Auto-Attach...",
+                        rawMessage = "$strategyLabel timed out after ${spec.timeoutMs / 1000}s. Trying next transport strategy...",
                     )
                     delay(RECONNECT_COOLDOWN_MS)
                     if (activeSessionId.get() == sessionId) {
@@ -659,12 +701,15 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                             remoteDevice = remoteDevice,
                             displayName = displayName,
                             redacted = redacted,
-                            autoConnect = true,
-                            allowFallback = false,
+                            attempts = attempts,
+                            attemptIndex = attemptIndex + 1,
                         )
                     }
                 } else {
-                    val timeoutNote = "Timed out after ${timeoutMs / 1000}s ($strategyLabel). Watch S4 may be connected via Classic Bluetooth only or Mi Fitness is exclusively holding the BLE GATT slot."
+                    val sdpCount = _diagnostics.value.gattSession.sdpUuids.size
+                    val timeoutNote = "All read-only GATT transport strategies timed out. " +
+                        "Watch S4 appears connected over Classic BR/EDR (SDP UUIDs=$sdpCount) or Mi Fitness is using RFCOMM/SPP rather than an open BLE GATT peripheral slot. " +
+                        "Check Cached SDP UUIDs below and copy the report for M3 analysis."
                     appendLog(
                         level = DiagnosticLogLevel.WARN,
                         rawMessage = "$displayName [$redacted]: $timeoutNote",
@@ -863,6 +908,10 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                     appendLine("      - ${ch.uuid} [${ch.properties.joinToString(",")}] (${ch.displayName})")
                 }
             }
+            appendLine("Cached Classic/SDP UUIDs: ${session.sdpUuids.size}")
+            session.sdpUuids.forEach { uuid ->
+                appendLine("  * $uuid (${GattUuidLookup.sdpUuidDisplayName(uuid)})")
+            }
             appendLine()
             appendLine("## Recent Logs (Redacted)")
             snapshot.logs.take(40).forEach { entry ->
@@ -946,6 +995,8 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
             else -> BluetoothTransportType.UNKNOWN
         }
 
+        val sdpUuids = (existing?.sdpUuids.orEmpty() + readCachedSdpUuids(device)).distinct()
+
         discoveredDevices[address] = BleDeviceSummary(
             addressKey = address,
             redactedAddress = LogRedactor.redactMacAddress(address),
@@ -964,8 +1015,16 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
             matchConfidence = betterMatch.first,
             matchReason = betterMatch.second,
             advertisedServiceUuids = mergedUuids,
+            sdpUuids = sdpUuids,
             lastSeenAtMillis = nowMillis,
         )
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun readCachedSdpUuids(device: BluetoothDevice): List<String> = try {
+        device.uuids.orEmpty().map { it.uuid.toString().lowercase() }.distinct()
+    } catch (_: SecurityException) {
+        emptyList()
     }
 
     private fun mapTransportType(type: Int): BluetoothTransportType = when (type) {
@@ -1004,11 +1063,18 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
         }
     }
 
+    private data class GattAttemptSpec(
+        val label: String,
+        val transport: Int,
+        val autoConnect: Boolean,
+        val timeoutMs: Long,
+    )
+
     private companion object {
         const val SCAN_TIMEOUT_MS = 15_000L
         const val RECONNECT_COOLDOWN_MS = 450L
-        const val DIRECT_CONNECT_TIMEOUT_MS = 10_000L
-        const val AUTO_ATTACH_TIMEOUT_MS = 12_000L
+        const val DIRECT_CONNECT_TIMEOUT_MS = 6_000L
+        const val AUTO_ATTACH_TIMEOUT_MS = 8_000L
         const val MAX_LOG_ENTRIES = 120
     }
 }

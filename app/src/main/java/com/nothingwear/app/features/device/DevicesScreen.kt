@@ -57,6 +57,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nothingwear.app.core.bluetooth.GattUuidLookup
 import com.nothingwear.app.core.bluetooth.WatchMatchConfidence
 import com.nothingwear.app.core.designsystem.component.MilestonePlaceholderCard
 import com.nothingwear.app.core.designsystem.component.NothingSectionHeader
@@ -653,6 +654,32 @@ private fun GattSessionCard(
                         service = service,
                         expanded = service.uuid in expandedServiceUuids,
                         onToggle = { onToggleServiceExpanded(service.uuid) },
+                    )
+                }
+            }
+        }
+
+        if (session.sdpUuids.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(NothingSpacing.sm))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(NothingSpacing.sm))
+            Text(
+                text = "CACHED CLASSIC / SDP UUIDS (${session.sdpUuids.size}) — READ-ONLY",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(NothingSpacing.xs))
+            Column(verticalArrangement = Arrangement.spacedBy(NothingSpacing.xxs)) {
+                session.sdpUuids.forEach { uuid ->
+                    Text(
+                        text = "• ${GattUuidLookup.sdpUuidDisplayName(uuid)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "  $uuid",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

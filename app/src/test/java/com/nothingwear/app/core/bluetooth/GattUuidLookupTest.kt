@@ -26,5 +26,9 @@ class GattUuidLookupTest {
 
         val props = GattUuidLookup.decodeProperties(0x02 or 0x08 or 0x10)
         assertEquals(listOf("READ", "WRITE", "NOTIFY"), props)
+        assertEquals(
+            "Serial Port Profile / SPP (0x1101)",
+            GattUuidLookup.sdpUuidDisplayName("00001101-0000-1000-8000-00805f9b34fb"),
+        )
     }
 }
