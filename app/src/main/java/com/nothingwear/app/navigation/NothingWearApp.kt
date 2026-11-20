@@ -30,10 +30,12 @@ import com.nothingwear.app.features.calendar.CalendarRoute
 import com.nothingwear.app.features.calendar.EventDetailRoute
 import com.nothingwear.app.features.dashboard.DashboardRoute
 import com.nothingwear.app.features.device.DevicesRoute
+import com.nothingwear.app.features.notifications.EventSyncRoute
 import com.nothingwear.app.features.settings.SettingsRoute
 import com.nothingwear.app.features.watchface.WatchFaceStudioScreen
 
 private const val EVENT_DETAIL_ROUTE_PATTERN = "calendar/event/{instanceKey}"
+private const val WATCH_SYNC_ROUTE = "calendar/watch-sync"
 
 @Composable
 fun NothingWearApp(
@@ -58,6 +60,10 @@ fun NothingWearApp(
 
     fun openEventDetail(instanceKey: String) {
         navController.navigate("calendar/event/${Uri.encode(instanceKey)}")
+    }
+
+    fun openWatchSync() {
+        navController.navigate(WATCH_SYNC_ROUTE)
     }
 
     Scaffold(
@@ -124,6 +130,7 @@ fun NothingWearApp(
             composable(NothingWearDestination.HOME.route) {
                 DashboardRoute(
                     onOpenCalendar = { navigateTopLevel(NothingWearDestination.CALENDAR) },
+                    onOpenWatchSync = ::openWatchSync,
                     onOpenEventDetail = ::openEventDetail,
                     onOpenWatchFaceStudio = { navigateTopLevel(NothingWearDestination.WATCH_FACE_STUDIO) },
                     onOpenDeviceDiagnostics = { navigateTopLevel(NothingWearDestination.DEVICES) },
@@ -132,6 +139,12 @@ fun NothingWearApp(
             composable(NothingWearDestination.CALENDAR.route) {
                 CalendarRoute(
                     onOpenEventDetail = ::openEventDetail,
+                    onOpenWatchSync = ::openWatchSync,
+                )
+            }
+            composable(WATCH_SYNC_ROUTE) {
+                EventSyncRoute(
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(

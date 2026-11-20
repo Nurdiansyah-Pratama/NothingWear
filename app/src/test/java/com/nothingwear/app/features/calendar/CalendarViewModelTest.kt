@@ -3,13 +3,18 @@ package com.nothingwear.app.features.calendar
 import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.core.permissions.CalendarPermissionChecker
 import com.nothingwear.app.domain.model.AgendaRange
+import com.nothingwear.app.domain.model.BridgeActionResult
 import com.nothingwear.app.domain.model.CalendarEvent
 import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
+import com.nothingwear.app.domain.model.EventSyncOverview
+import com.nothingwear.app.domain.model.ReminderLeadTime
 import com.nothingwear.app.domain.repository.CalendarRepository
+import com.nothingwear.app.domain.repository.EventSyncRepository
 import com.nothingwear.app.domain.usecase.ObserveCalendarSyncMetadataUseCase
 import com.nothingwear.app.domain.usecase.ObserveCalendarsUseCase
+import com.nothingwear.app.domain.usecase.RescheduleWatchRemindersUseCase
 import com.nothingwear.app.domain.usecase.SyncDeviceCalendarsUseCase
 import com.nothingwear.app.domain.usecase.ToggleCalendarSelectionUseCase
 import kotlinx.coroutines.Dispatchers
@@ -104,12 +109,28 @@ class CalendarViewModelTest {
             lastSyncedAtMillis = nowMillis,
         )
 
+        val stubEventSyncRepo = object : EventSyncRepository {
+            override fun observeEventSyncOverview(): Flow<EventSyncOverview> = MutableStateFlow(
+                EventSyncOverview(
+                    nativeCapability = com.nothingwear.protocol.watchs4.XiaomiWatchS4ProtocolAdapter().getCapabilityReport(),
+                    bridgeSettings = com.nothingwear.app.domain.model.ReminderBridgeSettings(),
+                    upcomingPlannedReminders = emptyList(),
+                    validatedPayloadCount = 0,
+                ),
+            )
+            override suspend fun setReminderBridgeEnabled(enabled: Boolean) = BridgeActionResult.Cleared
+            override suspend fun setReminderLeadTime(leadTime: ReminderLeadTime) = BridgeActionResult.Scheduled(0)
+            override suspend fun rescheduleUpcomingReminders() = BridgeActionResult.Scheduled(0)
+            override suspend fun sendTestWatchAlert() = BridgeActionResult.TestNotificationSent
+        }
+
         val viewModel = CalendarViewModel(
             calendarRepository = fakeRepo,
             observeCalendars = ObserveCalendarsUseCase(fakeRepo),
             observeCalendarSyncMetadata = ObserveCalendarSyncMetadataUseCase(fakeRepo),
             syncDeviceCalendars = SyncDeviceCalendarsUseCase(fakeRepo),
             toggleCalendarSelection = ToggleCalendarSelectionUseCase(fakeRepo),
+            rescheduleWatchReminders = RescheduleWatchRemindersUseCase(stubEventSyncRepo),
             permissionChecker = CalendarPermissionChecker { false },
             timeProvider = fixedTime,
         )

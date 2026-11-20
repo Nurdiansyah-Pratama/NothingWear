@@ -53,6 +53,7 @@ import com.nothingwear.app.domain.model.WatchConnectionState
 @Composable
 fun DashboardRoute(
     onOpenCalendar: () -> Unit,
+    onOpenWatchSync: () -> Unit,
     onOpenEventDetail: (String) -> Unit,
     onOpenWatchFaceStudio: () -> Unit,
     onOpenDeviceDiagnostics: () -> Unit,
@@ -63,6 +64,7 @@ fun DashboardRoute(
     DashboardScreen(
         uiState = uiState,
         onOpenCalendar = onOpenCalendar,
+        onOpenWatchSync = onOpenWatchSync,
         onOpenEventDetail = onOpenEventDetail,
         onOpenWatchFaceStudio = onOpenWatchFaceStudio,
         onOpenDeviceDiagnostics = onOpenDeviceDiagnostics,
@@ -74,6 +76,7 @@ fun DashboardRoute(
 fun DashboardScreen(
     uiState: DashboardUiState,
     onOpenCalendar: () -> Unit,
+    onOpenWatchSync: () -> Unit,
     onOpenEventDetail: (String) -> Unit,
     onOpenWatchFaceStudio: () -> Unit,
     onOpenDeviceDiagnostics: () -> Unit,
@@ -120,7 +123,7 @@ fun DashboardScreen(
                 item {
                     CalendarSyncStatusCard(
                         calendarOverview = overview.calendarOverview,
-                        onOpenCalendar = onOpenCalendar,
+                        onOpenCalendar = onOpenWatchSync,
                     )
                 }
 
@@ -604,10 +607,11 @@ private fun DashboardScreenPreview() {
                         todayEvents = emptyList(),
                         upcomingEvents = emptyList(),
                     ),
-                    currentMilestone = "M1 · Calendar",
+                    currentMilestone = "M4 · Sync & Bridge",
                 ),
             ),
             onOpenCalendar = {},
+            onOpenWatchSync = {},
             onOpenEventDetail = {},
             onOpenWatchFaceStudio = {},
             onOpenDeviceDiagnostics = {},

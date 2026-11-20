@@ -151,7 +151,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                MetadataRow(label = "Milestone", value = "M2 — Device & BLE Discovery")
+                MetadataRow(label = "Milestone", value = "M4 — Events Sync & Bridge")
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
@@ -161,7 +161,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                MetadataRow(label = "Permissions", value = "Calendar, BLE Scan/Connect")
+                MetadataRow(label = "Permissions", value = "Calendar, BLE, Notifications")
             }
         }
 

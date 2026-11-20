@@ -2,15 +2,16 @@
 
 Independent, offline-first Android companion application and research workspace for **Xiaomi Watch S4**, focused on personal calendar management, BLE device diagnostics, Watch Face Studio, and ethical protocol research for enabling native Watch S4 Events synchronization on non-Xiaomi devices (primary target: **Infinix XOS 15**).
 
-> **Current Status:** `M3 — Mi Fitness Reverse Engineering` complete inside isolated `protocol-lab/` (root cause of Infinix XOS 15 Events restriction confirmed in `com.xiaomi.wearable 3.60.0i`, protobuf + `WearAuthV1`/`WearAuthV2` architecture documented, pure-Python ADB profiler & BTSnoop HCI analyzer tested, Xiaomi 14T comparative capture guide ready). Android app (`app/`) remains completely clean and unaffected. Native Events Sync / Fallback (`M4`) and Watch Face Studio (`M5`) await approval.
+> **Current Status:** `M4 — Events Sync & Watch Reminder Bridge` complete (isolated `:protocol-adapter:xiaomi-watch-s4` Gradle module honestly documenting `WearAuthV2` auth limitation + WorkManager Watch Reminder Bridge fallback delivering calendar alerts via official Mi Fitness `NotifySyncService`, on-demand `POST_NOTIFICATIONS`, and 1-tap Test Watch Alert). Watch Face Studio (`M5`) and Health Dashboard (`M6`) await approval.
 
 ## Tech Stack (Verified Baseline)
 
 - **Package:** `com.nothingwear.app`
 - **Language:** Kotlin (`2.2.10`) with AGP `9.4.1` built-in Kotlin & Gradle `9.6.0`
 - **UI:** Jetpack Compose + Material 3 (Compose BOM `2026.02.01`, dark-mode default, light mode, 6 custom accent colors)
-- **Architecture:** MVVM + Clean Architecture (`core`, `domain`, `data`, `features`, `navigation`)
+- **Architecture:** MVVM + Clean Architecture (`:app` + isolated `:protocol-adapter:xiaomi-watch-s4`)
 - **Database:** Room (`2.8.5`) via KSP with exported schemas (`app/schemas/`)
+- **Background Scheduling:** WorkManager (`2.12.0`) for Watch Reminder Bridge alerts
 - **DI:** Hilt (`2.60.1`) via KSP (`2.3.14`)
 - **Navigation:** Navigation Compose (`2.10.2`) + Hilt Navigation Compose (`1.4.0`)
 - **Preferences:** Jetpack DataStore Preferences (`1.3.0`)

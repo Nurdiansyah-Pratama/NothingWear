@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0-m4] — M4 Events Sync Adapter & Watch Reminder Bridge (2026-11-21)
+
+### Added
+- Created isolated pure-Kotlin JVM Gradle module `:protocol-adapter:xiaomi-watch-s4` containing `WatchS4AdapterState`, `WatchS4EventPayload` sanitization, and `XiaomiWatchS4ProtocolAdapter` honestly reporting `UNSUPPORTED` (`WearAuthV2` authentication boundary documented in M3; zero unauthorized BLE writes).
+- Added WorkManager (`2.12.0`) and on-demand `POST_NOTIFICATIONS` permission (`NotificationPermissionChecker`) strictly for the Watch Reminder Bridge fallback.
+- Implemented `ReminderSchedulePlanner`, `CalendarNotificationPoster`, `CalendarReminderWorker`, and `WatchEventSyncRepository` scheduling local watch-formatted calendar reminders (next 48h, configurable lead time `0m/5m/15m/30m`, automatic rescheduling on calendar sync/filter changes).
+- Built `EventSyncScreen` (`calendar/watch-sync` route reachable from Home Dashboard and Calendar tab) with honest M3 limitation summary, Reminder Bridge toggle, lead-time selector, 48h planned alerts preview, 1-tap **Test Watch Alert**, and Infinix XOS 15 + Mi Fitness notification forwarding checklist.
+- Added unit tests for `XiaomiWatchS4ProtocolAdapter`, `ReminderSchedulePlanner`, `EventSyncViewModel`, and updated `CalendarViewModelTest` & `DashboardViewModelTest`.
+
 ## [M3 Research Lab] — Mi Fitness Reverse Engineering (2026-11-21)
 
 ### Added (Isolated in `protocol-lab/`, zero changes to Android `:app` build)

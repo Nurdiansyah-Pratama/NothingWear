@@ -10,6 +10,7 @@ import com.nothingwear.app.domain.model.CalendarSyncResult
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.usecase.ObserveCalendarSyncMetadataUseCase
 import com.nothingwear.app.domain.usecase.ObserveCalendarsUseCase
+import com.nothingwear.app.domain.usecase.RescheduleWatchRemindersUseCase
 import com.nothingwear.app.domain.usecase.SyncDeviceCalendarsUseCase
 import com.nothingwear.app.domain.usecase.ToggleCalendarSelectionUseCase
 import com.nothingwear.app.domain.util.AgendaTimeWindows
@@ -31,6 +32,7 @@ class CalendarViewModel @Inject constructor(
     observeCalendarSyncMetadata: ObserveCalendarSyncMetadataUseCase,
     private val syncDeviceCalendars: SyncDeviceCalendarsUseCase,
     private val toggleCalendarSelection: ToggleCalendarSelectionUseCase,
+    private val rescheduleWatchReminders: RescheduleWatchRemindersUseCase,
     private val permissionChecker: CalendarPermissionChecker,
     private val timeProvider: TimeProvider,
 ) : ViewModel() {
@@ -158,6 +160,7 @@ class CalendarViewModel @Inject constructor(
     fun onToggleCalendar(calendarId: Long, selected: Boolean) {
         viewModelScope.launch {
             toggleCalendarSelection(calendarId = calendarId, selected = selected)
+            rescheduleWatchReminders()
         }
     }
 
@@ -166,6 +169,9 @@ class CalendarViewModel @Inject constructor(
         viewModelScope.launch {
             localControls.update { it.copy(isSyncing = true, syncFeedbackMessage = null) }
             val result = syncDeviceCalendars()
+            if (result is CalendarSyncResult.Success) {
+                rescheduleWatchReminders()
+            }
             localControls.update { state ->
                 when (result) {
                     is CalendarSyncResult.Success -> state.copy(

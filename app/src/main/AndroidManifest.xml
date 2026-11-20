@@ -5,9 +5,12 @@
     <!--
         M1 (Calendar Engine): READ_CALENDAR only (no WRITE_CALENDAR).
         M2 (Device & BLE Discovery): Android-version-aware BLE scan & connect permissions.
-        BLUETOOTH_ADVERTISE and POST_NOTIFICATIONS are intentionally NOT requested.
+        M4 (Watch Reminder Bridge): POST_NOTIFICATIONS requested on-demand only when the user
+        enables or tests local calendar reminder notifications for Mi Fitness forwarding.
+        BLUETOOTH_ADVERTISE is intentionally NOT requested.
     -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Android 12+ (API 31+) BLE permissions without location derivation -->
     <uses-permission

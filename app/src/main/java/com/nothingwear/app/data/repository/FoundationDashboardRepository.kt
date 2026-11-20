@@ -15,6 +15,7 @@ import com.nothingwear.app.domain.model.WatchConnectionState
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DashboardRepository
 import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
+import com.nothingwear.app.domain.repository.EventSyncRepository
 import com.nothingwear.app.domain.util.AgendaTimeWindows
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -23,25 +24,26 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * M2 implementation of [DashboardRepository].
+ * M4 implementation of [DashboardRepository].
  *
- * Combines live Room-backed local calendar data with live read-only BLE diagnostic state
- * while keeping native Watch S4 event sync honestly marked as PROTOCOL_UNKNOWN (M3/M4).
+ * Combines live Room-backed local calendar data, live read-only BLE diagnostic state,
+ * and isolated Watch S4 protocol-adapter / Reminder Bridge status honestly.
  */
 @Singleton
 class FoundationDashboardRepository @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val deviceDiagnosticsRepository: DeviceDiagnosticsRepository,
+    private val eventSyncRepository: EventSyncRepository,
     private val permissionChecker: CalendarPermissionChecker,
     private val timeProvider: TimeProvider,
 ) : DashboardRepository {
 
-    // TODO(M4): Combine verified protocol-adapter state once M3 reverse engineering is complete.
     override fun observeDashboardOverview(): Flow<DashboardOverview> = combine(
         calendarRepository.observeSelectedEvents(),
         calendarRepository.observeSyncMetadata(),
         deviceDiagnosticsRepository.observeDiagnostics(),
-    ) { selectedEvents, metadata, bleSnapshot ->
+        eventSyncRepository.observeEventSyncOverview(),
+    ) { selectedEvents, metadata, bleSnapshot, syncOverview ->
         val nowMillis = timeProvider.nowMillis()
         val zoneId = timeProvider.zoneId()
         val today = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
@@ -129,17 +131,25 @@ class FoundationDashboardRepository @Inject constructor(
             )
         }
 
+        val bridgeSettings = syncOverview.bridgeSettings
+        val watchSyncMessage = if (bridgeSettings.isEnabled) {
+            "Native Events app: UNSUPPORTED (WearAuthV2). Fallback Reminder Bridge ACTIVE " +
+                "(${syncOverview.upcomingPlannedReminders.size} upcoming alerts, ${bridgeSettings.leadTime.label} lead) via Mi Fitness notifications."
+        } else {
+            "Native Events app: UNSUPPORTED (WearAuthV2). Tap to enable the Watch Reminder Bridge fallback."
+        }
+
         DashboardOverview(
             deviceStatus = deviceStatus,
             calendarOverview = CalendarOverview(
                 localCalendarState = localState,
                 localStatusMessage = localMessage,
-                nativeWatchSyncState = WatchConnectionState.PROTOCOL_UNKNOWN,
-                nativeWatchSyncMessage = "Local calendar reading does NOT sync to Watch S4 Events. Requires M3 protocol research and M4 verification.",
+                nativeWatchSyncState = WatchConnectionState.UNSUPPORTED,
+                nativeWatchSyncMessage = watchSyncMessage,
                 todayEvents = todayEvents,
                 upcomingEvents = upcomingEvents,
             ),
-            currentMilestone = "M2 · BLE Diagnostics",
+            currentMilestone = "M4 · Sync & Bridge",
         )
     }
 

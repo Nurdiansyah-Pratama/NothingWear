@@ -15,7 +15,10 @@
 python -m unittest discover -s protocol-lab/packet-parser -p "test_*.py" -v
 ```
 
-## M0–M2 Test Coverage
+## M0–M4 Test Coverage
+- `XiaomiWatchS4ProtocolAdapterTest` (`:protocol-adapter:xiaomi-watch-s4`): Verifies honest `UNSUPPORTED` capability report (`0xFDAB`, `0x1101`, `WearAuthV2`), payload sanitization/bounds, and blocked unauthorized transmission.
+- `ReminderSchedulePlannerTest`: Verifies 48-hour lookahead scheduling, lead-time offsets, past/far-future filtering, and 08:00 local anchoring for UTC all-day events.
+- `EventSyncViewModelTest`: Verifies honest `UNSUPPORTED` native status, bridge toggle, lead-time selection, and test watch alert feedback.
 - `LogRedactorTest`: Verifies MAC address masking (colon/dash/mixed case) and email redaction in diagnostic logs.
 - `WatchS4IdentifierTest`: Verifies Xiaomi Watch S4 name matching, Xiaomi SIG Manufacturer ID (`0x038F`), Mi Service UUID (`0xFE95`), and unrelated peripheral classification.
 - `GattUuidLookupTest`: Verifies standard Bluetooth SIG service names, property bitmask decoding, and strict read-only whitelist enforcement.

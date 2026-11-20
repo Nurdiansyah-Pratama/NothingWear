@@ -5,17 +5,23 @@ import com.nothingwear.app.core.permissions.CalendarPermissionChecker
 import com.nothingwear.app.data.repository.FoundationDashboardRepository
 import com.nothingwear.app.domain.model.BleDiagnosticsSnapshot
 import com.nothingwear.app.domain.model.BluetoothAdapterStatus
+import com.nothingwear.app.domain.model.BridgeActionResult
 import com.nothingwear.app.domain.model.CalendarEvent
 import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
 import com.nothingwear.app.domain.model.CalendarSyncState
+import com.nothingwear.app.domain.model.EventSyncOverview
 import com.nothingwear.app.domain.model.GattInspectionSession
+import com.nothingwear.app.domain.model.ReminderBridgeSettings
+import com.nothingwear.app.domain.model.ReminderLeadTime
 import com.nothingwear.app.domain.model.StandardDeviceInfo
 import com.nothingwear.app.domain.model.WatchConnectionState
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
+import com.nothingwear.app.domain.repository.EventSyncRepository
 import com.nothingwear.app.domain.usecase.ObserveDashboardOverviewUseCase
+import com.nothingwear.protocol.watchs4.XiaomiWatchS4ProtocolAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -62,6 +68,7 @@ class DashboardViewModelTest {
             deviceDiagnosticsRepository = StubDeviceDiagnosticsRepository(
                 BleDiagnosticsSnapshot(adapterStatus = BluetoothAdapterStatus.ENABLED),
             ),
+            eventSyncRepository = StubEventSyncRepository(),
             permissionChecker = CalendarPermissionChecker { false },
             timeProvider = fixedTime,
         )
@@ -74,7 +81,7 @@ class DashboardViewModelTest {
         assertEquals(WatchConnectionState.DISCONNECTED, overview.deviceStatus.connectionState)
         assertNull(overview.deviceStatus.batteryPercent)
         assertEquals(CalendarSyncState.PERMISSION_REQUIRED, overview.calendarOverview.localCalendarState)
-        assertEquals(WatchConnectionState.PROTOCOL_UNKNOWN, overview.calendarOverview.nativeWatchSyncState)
+        assertEquals(WatchConnectionState.UNSUPPORTED, overview.calendarOverview.nativeWatchSyncState)
         assertTrue(overview.calendarOverview.todayEvents.isEmpty())
         assertTrue(overview.calendarOverview.upcomingEvents.isEmpty())
     }
@@ -134,6 +141,7 @@ class DashboardViewModelTest {
                     ),
                 ),
             ),
+            eventSyncRepository = StubEventSyncRepository(),
             permissionChecker = CalendarPermissionChecker { true },
             timeProvider = fixedTime,
         )
@@ -149,7 +157,23 @@ class DashboardViewModelTest {
         assertEquals("Watch Research Notes", overview.calendarOverview.upcomingEvents.first().title)
         assertEquals(WatchConnectionState.PROTOCOL_UNKNOWN, overview.deviceStatus.connectionState)
         assertEquals(84, overview.deviceStatus.batteryPercent)
-        assertEquals(WatchConnectionState.PROTOCOL_UNKNOWN, overview.calendarOverview.nativeWatchSyncState)
+        assertEquals(WatchConnectionState.UNSUPPORTED, overview.calendarOverview.nativeWatchSyncState)
+    }
+
+    private class StubEventSyncRepository : EventSyncRepository {
+        override fun observeEventSyncOverview(): Flow<EventSyncOverview> = flowOf(
+            EventSyncOverview(
+                nativeCapability = XiaomiWatchS4ProtocolAdapter().getCapabilityReport(),
+                bridgeSettings = ReminderBridgeSettings(),
+                upcomingPlannedReminders = emptyList(),
+                validatedPayloadCount = 0,
+            ),
+        )
+
+        override suspend fun setReminderBridgeEnabled(enabled: Boolean) = BridgeActionResult.Cleared
+        override suspend fun setReminderLeadTime(leadTime: ReminderLeadTime) = BridgeActionResult.Scheduled(0)
+        override suspend fun rescheduleUpcomingReminders() = BridgeActionResult.Scheduled(0)
+        override suspend fun sendTestWatchAlert() = BridgeActionResult.TestNotificationSent
     }
 
     private class StubCalendarRepository(

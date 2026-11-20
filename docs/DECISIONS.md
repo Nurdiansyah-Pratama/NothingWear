@@ -48,3 +48,10 @@
 - **Context:** M2 requires BLE discovery, Xiaomi Watch S4 identification, and GATT inspection without interfering with official Mi Fitness pairing or adding unnecessary third-party BLE wrappers.
 - **Decision:** Use native Android `BluetoothManager` / `BluetoothLeScanner` / `BluetoothGatt` with `neverForLocation` on Android 12+, list both bonded/system-GATT-connected devices and active 15s BLE scan results, whitelist auto-reads strictly to standard Bluetooth SIG Battery (`0x2A19`) and Device Information (`0x180A`) characteristics with zero GATT writes, and redact all MAC addresses via `LogRedactor`.
 - **Consequences:** Zero extra BLE library bloat, safe coexistence with Mi Fitness, and privacy-safe diagnostic reports ready to assist M3 research.
+
+## ADR-008: Isolated `:protocol-adapter:xiaomi-watch-s4` JVM Module + WorkManager Reminder Bridge Fallback (M4)
+- **Date:** 2026-11-21
+- **Status:** Accepted
+- **Context:** M3 confirmed that Xiaomi Watch S4 native Events injection is gated by `WearAuthV1`/`WearAuthV2` authenticated encryption held exclusively by Mi Fitness, and NothingWear's security rules forbid bypassing authentication or tampering with Mi Fitness/firmware.
+- **Decision:** Extract `:protocol-adapter:xiaomi-watch-s4` as an isolated pure-Kotlin JVM Gradle module reporting honest `UNSUPPORTED` capability with sanitized event payload validation, and deliver a reliable user-approved fallback (`WorkManager 2.12.0` + `NotificationChannel` + on-demand `POST_NOTIFICATIONS`) that forwards calendar alerts through Mi Fitness's official `NotifySyncService` to Xiaomi Watch S4.
+- **Consequences:** Zero unauthorized BLE writes, Mi Fitness pairing remains 100% stable, and users on Infinix XOS 15 receive timely calendar alerts directly on Xiaomi Watch S4.

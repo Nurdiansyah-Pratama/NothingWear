@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "NothingWear"
 include(":app")
+include(":protocol-adapter:xiaomi-watch-s4")

@@ -1,32 +1,23 @@
-# Native Watch S4 Event Synchronization (`M4`)
+# Native Watch S4 Event Synchronization & Fallback (`M4`)
 
-**Status:** Pending Approval after M3 Research (`protocol-lab/protocol-docs/M3-RESEARCH-REPORT.md`).
+**Status:** Implemented in `0.4.0-m4` (Option B — Isolated Protocol Adapter + Verified Watch Reminder Bridge Fallback).
 
-## Key M3 Findings Governing M4
-- **Root Cause on Infinix XOS 15:** Confirmed OEM whitelist in `com.xiaomi.wearable 3.60.0i` (`FeatureItemModule` + `DeviceSettingsSyncHelperImpl.isCalendarSyncAndroidVersion` allowing only `Xiaomi`, `Vivo`, `Oppo`, `Honor`), despite standard Android Calendar Provider (`content://com.android.calendar/*`) and `READ_CALENDAR` already working.
-- **Protocol & Auth Boundary:** `BlueToothSender.handleCalendar()` serializes events to Protobuf (`Lt3u` → `Lgq3` → `Lhq3`) over `DeviceContact`, guarded by `WearAuthV1` / `WearAuthV2` authenticated encryption (`AESEncryption`, `TokenEncryption`, `AuthenticatedCipherText`).
-- **M4 Implementation Rule:** Never bypass authentication, extract private Mi Fitness tokens, or patch Mi Fitness. If optional Reference A (Xiaomi 14T) HCI capture confirms encrypted wire payloads, M4 delivers:
-  1. Isolated `protocol-adapter/xiaomi-watch-s4` reporting honest `UNSUPPORTED` / `AUTH_REQUIRED` state with zero speculative BLE writes.
-  2. Verified **Calendar Reminder Notification Bridge** fallback delivering upcoming Room-cached calendar reminders cleanly through Android notifications → official Mi Fitness `NotifySyncService` → Xiaomi Watch S4.
+## 1. Isolated Protocol Adapter (`:protocol-adapter:xiaomi-watch-s4`)
+- Implemented as a pure-Kotlin JVM Gradle module completely decoupled from Android UI/framework classes.
+- Models all Master Project Plan Section 6 states (`WatchS4AdapterState`) and evidence-backed sanitized event payloads (`WatchS4EventPayload`).
+- `XiaomiWatchS4ProtocolAdapter` honestly reports **`UNSUPPORTED`** based on verified M2/M3 findings:
+  - Verified Watch S4 surfaces: GATT `0xFDAB` and Classic SPP `0x1101`.
+  - Blocking boundary: `Xiaomi WearAuthV1 / WearAuthV2` authenticated encryption session owned by Mi Fitness.
+  - Zero unauthorized BLE writes, zero token extraction, zero APK patching, and zero fabricated wire frames.
 
-## Adapter Lifecycle States
-Modeled in `com.nothingwear.app.domain.model.WatchConnectionState`:
-- `UNSUPPORTED`
-- `DISCONNECTED`
-- `CONNECTING`
-- `CONNECTED`
-- `PROTOCOL_UNKNOWN`
-- `READY`
-- `SYNCING`
-- `SUCCESS`
-- `FAILED`
+## 2. Working Fallback — Watch Reminder Bridge (`WorkManager` + `NotifySyncService`)
+- Uses `androidx.work:work-runtime-ktx:2.12.0` (`CalendarReminderWorker`) and `CalendarNotificationPoster` (`nothingwear_calendar_reminders` high-importance channel) to schedule local reminders for upcoming Room-cached calendar events (48-hour lookahead, configurable lead times: `At start`, `5 min`, `15 min`, `30 min`, all-day events anchored at `08:00` local time).
+- Requests `android.permission.POST_NOTIFICATIONS` **on-demand only** when the user enables or tests the Reminder Bridge.
+- Automatically reschedules reminders whenever local calendars are refreshed or calendar filters change.
+- Includes a 1-tap **Test Watch Alert** button and Infinix XOS 15 + Mi Fitness notification forwarding checklist.
 
-## Physical Verification Acceptance Criteria (M4)
-Event sync may only be marked successful when physically verified on a real Xiaomi Watch S4:
-1. Watch receives the event payload without breaking Mi Fitness pairing.
-2. Event appears in the native Watch S4 **Events** application.
-3. Title, date, and start/end time match accurately.
-4. Multiple events synchronize reliably.
-5. Event updates and deletions behave predictably.
-
-If protocol encryption/authentication prevents third-party transmission, document the exact limitation and provide a clean local/notification fallback rather than fabricating sync status.
+## Physical Verification Checklist (Infinix X6880 + Xiaomi Watch S4)
+1. Enable **NothingWear** inside **Mi Fitness → Device → Notifications → App notifications**.
+2. Set NothingWear battery mode to **Unrestricted** in Infinix XOS 15 App Management.
+3. Open **Calendar → Watch Bridge** (or tap the **Synchronization Status** card on Home), grant `POST_NOTIFICATIONS`, enable **Calendar Watch Alerts**, and tap **Test Watch Alert**.
+4. Confirm the alert vibrates and displays cleanly on Xiaomi Watch S4 while Mi Fitness pairing remains stable.

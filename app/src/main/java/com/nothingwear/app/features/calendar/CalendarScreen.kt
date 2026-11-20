@@ -68,6 +68,7 @@ import com.nothingwear.app.domain.model.CalendarSource
 @Composable
 fun CalendarRoute(
     onOpenEventDetail: (String) -> Unit,
+    onOpenWatchSync: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CalendarViewModel = hiltViewModel(),
 ) {
@@ -101,6 +102,7 @@ fun CalendarRoute(
         onShowFilterSheet = viewModel::onShowCalendarFilterSheet,
         onToggleCalendar = viewModel::onToggleCalendar,
         onOpenEventDetail = onOpenEventDetail,
+        onOpenWatchSync = onOpenWatchSync,
         modifier = modifier,
     )
 }
@@ -117,6 +119,7 @@ fun CalendarScreen(
     onShowFilterSheet: (Boolean) -> Unit,
     onToggleCalendar: (Long, Boolean) -> Unit,
     onOpenEventDetail: (String) -> Unit,
+    onOpenWatchSync: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -199,6 +202,7 @@ fun CalendarScreen(
                 lastSyncedLabel = uiState.lastSyncedLabel,
                 feedbackMessage = uiState.syncFeedbackMessage,
                 filteredCount = uiState.totalFilteredEvents,
+                onOpenWatchSync = onOpenWatchSync,
             )
         }
 
@@ -438,11 +442,13 @@ private fun SyncStatusBanner(
     lastSyncedLabel: String?,
     feedbackMessage: String?,
     filteredCount: Int,
+    onOpenWatchSync: () -> Unit,
 ) {
     NothingSurfaceCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
         contentPadding = PaddingValues(horizontal = NothingSpacing.md, vertical = NothingSpacing.sm),
+        onClick = onOpenWatchSync,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -458,15 +464,16 @@ private fun SyncStatusBanner(
                 },
             )
             Text(
-                text = lastSyncedLabel?.let { "SYNCED $it" } ?: "LOCAL PHONE ONLY",
+                text = "WATCH BRIDGE →",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
         Spacer(modifier = Modifier.height(NothingSpacing.xs))
         Text(
             text = feedbackMessage
-                ?: "Events are cached locally on this phone. Native Watch S4 Events sync requires M3 research & M4 verification.",
+                ?: (lastSyncedLabel?.let { "Synced $it · " } ?: "") +
+                    "Tap to configure Watch Reminder Bridge (fallback for WearAuthV2 native Events limit).",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
