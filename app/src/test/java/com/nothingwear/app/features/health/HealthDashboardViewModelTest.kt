@@ -13,7 +13,9 @@ import com.nothingwear.app.domain.model.GattInspectionSession
 import com.nothingwear.app.domain.model.HealthConnectAvailability
 import com.nothingwear.app.domain.model.HealthDashboardSnapshot
 import com.nothingwear.app.domain.model.HealthMetricSummary
+import com.nothingwear.app.domain.model.LastVerifiedHeartRate
 import com.nothingwear.app.domain.model.MetricAvailabilityStatus
+import com.nothingwear.app.domain.model.UnifiedHeartRateSource
 import com.nothingwear.app.domain.model.WatchConnectionState
 import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.repository.HealthRepository
@@ -21,6 +23,7 @@ import com.nothingwear.app.domain.usecase.GetRequiredHealthPermissionsUseCase
 import com.nothingwear.app.domain.usecase.InspectDeviceGattUseCase
 import com.nothingwear.app.domain.usecase.ObserveBleDiagnosticsUseCase
 import com.nothingwear.app.domain.usecase.ObserveHealthSnapshotUseCase
+import com.nothingwear.app.domain.usecase.RecordVerifiedBleHeartRateUseCase
 import com.nothingwear.app.domain.usecase.RefreshBleEnvironmentUseCase
 import com.nothingwear.app.domain.usecase.RefreshHealthDataUseCase
 import com.nothingwear.app.domain.usecase.StartStandardHeartRateMonitorUseCase
@@ -69,6 +72,7 @@ class HealthDashboardViewModelTest {
             refreshHealthData = RefreshHealthDataUseCase(fakeHealthRepo),
             refreshBleEnvironment = RefreshBleEnvironmentUseCase(fakeBleRepo),
             getRequiredHealthPermissions = GetRequiredHealthPermissionsUseCase(fakeHealthRepo),
+            recordVerifiedBleHeartRate = RecordVerifiedBleHeartRateUseCase(fakeHealthRepo),
             inspectDeviceGatt = InspectDeviceGattUseCase(fakeBleRepo),
             startStandardHeartRateMonitor = StartStandardHeartRateMonitorUseCase(fakeBleRepo),
             stopStandardHeartRateMonitor = StopStandardHeartRateMonitorUseCase(fakeBleRepo),
@@ -83,15 +87,22 @@ class HealthDashboardViewModelTest {
         assertEquals(MetricAvailabilityStatus.VERIFIED, viewModel.uiState.value.healthSnapshot.stepsToday.status)
         assertEquals("Xiaomi Watch S4 06A3", viewModel.uiState.value.detectedWatch?.displayName)
 
+        // Start live BLE HR -> switches unified source to LIVE_BLE and persists last verified HR
         viewModel.onToggleLiveBleHeartRate()
         advanceUntilIdle()
         assertTrue(fakeBleRepo.startedHrMonitor)
         assertTrue(viewModel.uiState.value.bleHeartRate.isListening)
         assertEquals(76, viewModel.uiState.value.bleHeartRate.latestSample?.bpm)
+        assertEquals(UnifiedHeartRateSource.LIVE_BLE, viewModel.uiState.value.unifiedHeartRate.source)
+        assertEquals("76", viewModel.uiState.value.unifiedHeartRate.primaryBpmText)
+        assertEquals(76, fakeHealthRepo.lastRecordedBleBpm)
 
+        // Stop live BLE HR -> automatically falls back to LAST_VERIFIED_CACHE with 76 BPM
         viewModel.onToggleLiveBleHeartRate()
         advanceUntilIdle()
         assertTrue(fakeBleRepo.stoppedHrMonitor)
+        assertEquals(UnifiedHeartRateSource.LAST_VERIFIED_CACHE, viewModel.uiState.value.unifiedHeartRate.source)
+        assertEquals("76", viewModel.uiState.value.unifiedHeartRate.primaryBpmText)
 
         viewModel.onHealthPermissionsResult(emptySet())
         advanceUntilIdle()
@@ -101,6 +112,7 @@ class HealthDashboardViewModelTest {
     }
 
     private class FakeHealthRepository : HealthRepository {
+        var lastRecordedBleBpm: Int? = null
         private val snapshot = MutableStateFlow(
             HealthDashboardSnapshot(
                 healthConnectAvailability = HealthConnectAvailability.AVAILABLE,
@@ -119,6 +131,16 @@ class HealthDashboardViewModelTest {
         override fun observeHealthSnapshot(): Flow<HealthDashboardSnapshot> = snapshot
         override fun requiredHealthConnectPermissions(): Set<String> = setOf("READ_STEPS", "READ_HEART_RATE")
         override suspend fun refreshHealthData() = Unit
+        override suspend fun recordVerifiedBleHeartRate(bpm: Int, timestampMillis: Long) {
+            lastRecordedBleBpm = bpm
+            snapshot.value = snapshot.value.copy(
+                lastVerifiedHeartRate = LastVerifiedHeartRate(
+                    bpm = bpm,
+                    timestampMillis = timestampMillis,
+                    sourceLabel = "Watch S4 Live BLE (0x2A37)",
+                ),
+            )
+        }
     }
 
     private class FakeBleRepository : DeviceDiagnosticsRepository {

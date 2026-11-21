@@ -9,4 +9,6 @@ interface HealthRepository {
     fun requiredHealthConnectPermissions(): Set<String>
 
     suspend fun refreshHealthData()
+
+    suspend fun recordVerifiedBleHeartRate(bpm: Int, timestampMillis: Long) = Unit
 }

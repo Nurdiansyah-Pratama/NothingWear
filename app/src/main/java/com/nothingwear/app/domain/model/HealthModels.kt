@@ -13,6 +13,27 @@ enum class MetricAvailabilityStatus(val label: String) {
     UNAVAILABLE("UNAVAILABLE"),
 }
 
+enum class UnifiedHeartRateSource(val badgeLabel: String) {
+    LIVE_BLE("LIVE BLE 0x2A37"),
+    HEALTH_CONNECT("HEALTH CONNECT AUTO"),
+    LAST_VERIFIED_CACHE("LAST VERIFIED"),
+    UNAVAILABLE("NO READING"),
+}
+
+data class LastVerifiedHeartRate(
+    val bpm: Int,
+    val timestampMillis: Long,
+    val sourceLabel: String,
+)
+
+data class UnifiedHeartRateSummary(
+    val primaryBpmText: String = "--",
+    val source: UnifiedHeartRateSource = UnifiedHeartRateSource.UNAVAILABLE,
+    val sourceCaption: String = "No verified heart rate reading yet.",
+    val detailNote: String = "Enable Mi Fitness → Health Connect for automatic background BPM, or turn on Watch S4 Heart Rate Broadcast for live 0x2A37 streaming.",
+    val timestampMillis: Long? = null,
+)
+
 data class HealthMetricSummary(
     val title: String,
     val primaryValue: String,
@@ -61,6 +82,7 @@ data class HealthDashboardSnapshot(
         detailNote = "Grant Health Connect read access to inspect synced sleep sessions.",
     ),
     val dataOrigins: List<String> = emptyList(),
+    val lastVerifiedHeartRate: LastVerifiedHeartRate? = null,
     val lastRefreshedMillis: Long? = null,
     val hostPhone: HostPhoneEnvironment = HostPhoneEnvironment(
         deviceModel = "Android Device",

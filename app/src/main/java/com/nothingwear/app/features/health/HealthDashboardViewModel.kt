@@ -3,10 +3,16 @@ package com.nothingwear.app.features.health
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nothingwear.app.core.bluetooth.WatchMatchConfidence
+import com.nothingwear.app.domain.model.BleHeartRateMonitorState
+import com.nothingwear.app.domain.model.HealthDashboardSnapshot
+import com.nothingwear.app.domain.model.MetricAvailabilityStatus
+import com.nothingwear.app.domain.model.UnifiedHeartRateSource
+import com.nothingwear.app.domain.model.UnifiedHeartRateSummary
 import com.nothingwear.app.domain.usecase.GetRequiredHealthPermissionsUseCase
 import com.nothingwear.app.domain.usecase.InspectDeviceGattUseCase
 import com.nothingwear.app.domain.usecase.ObserveBleDiagnosticsUseCase
 import com.nothingwear.app.domain.usecase.ObserveHealthSnapshotUseCase
+import com.nothingwear.app.domain.usecase.RecordVerifiedBleHeartRateUseCase
 import com.nothingwear.app.domain.usecase.RefreshBleEnvironmentUseCase
 import com.nothingwear.app.domain.usecase.RefreshHealthDataUseCase
 import com.nothingwear.app.domain.usecase.StartStandardHeartRateMonitorUseCase
@@ -16,6 +22,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -24,10 +32,11 @@ import javax.inject.Inject
 @HiltViewModel
 class HealthDashboardViewModel @Inject constructor(
     observeHealthSnapshot: ObserveHealthSnapshotUseCase,
-    observeBleDiagnostics: ObserveBleDiagnosticsUseCase,
+    private val observeBleDiagnostics: ObserveBleDiagnosticsUseCase,
     private val refreshHealthData: RefreshHealthDataUseCase,
     private val refreshBleEnvironment: RefreshBleEnvironmentUseCase,
     private val getRequiredHealthPermissions: GetRequiredHealthPermissionsUseCase,
+    private val recordVerifiedBleHeartRate: RecordVerifiedBleHeartRateUseCase,
     private val inspectDeviceGatt: InspectDeviceGattUseCase,
     private val startStandardHeartRateMonitor: StartStandardHeartRateMonitorUseCase,
     private val stopStandardHeartRateMonitor: StopStandardHeartRateMonitorUseCase,
@@ -47,13 +56,15 @@ class HealthDashboardViewModel @Inject constructor(
             it.matchConfidence == WatchMatchConfidence.LIKELY_WATCH_S4 ||
                 it.matchConfidence == WatchMatchConfidence.XIAOMI_ECOSYSTEM
         }
+        val bleHr = ble.gattSession.heartRateState
         HealthDashboardUiState(
             isRefreshing = controls.isRefreshing,
             healthSnapshot = health,
+            unifiedHeartRate = buildUnifiedHeartRate(bleHr, health),
             adapterStatus = ble.adapterStatus,
             detectedWatch = detectedWatch,
             gattSession = ble.gattSession,
-            bleHeartRate = ble.gattSession.heartRateState,
+            bleHeartRate = bleHr,
             feedbackMessage = controls.feedbackMessage,
         )
     }.stateIn(
@@ -64,6 +75,14 @@ class HealthDashboardViewModel @Inject constructor(
 
     init {
         onRefreshAll()
+        viewModelScope.launch {
+            observeBleDiagnostics()
+                .mapNotNull { it.gattSession.heartRateState.latestSample }
+                .distinctUntilChanged()
+                .collect { sample ->
+                    recordVerifiedBleHeartRate(sample.bpm, sample.timestampMillis)
+                }
+        }
     }
 
     fun onRefreshAll() {
@@ -118,6 +137,51 @@ class HealthDashboardViewModel @Inject constructor(
         } else {
             startStandardHeartRateMonitor()
         }
+    }
+
+    private fun buildUnifiedHeartRate(
+        bleHr: BleHeartRateMonitorState,
+        health: HealthDashboardSnapshot,
+    ): UnifiedHeartRateSummary {
+        val liveSample = bleHr.latestSample
+        if (bleHr.isListening && liveSample != null) {
+            return UnifiedHeartRateSummary(
+                primaryBpmText = liveSample.bpm.toString(),
+                source = UnifiedHeartRateSource.LIVE_BLE,
+                sourceCaption = "Live Watch S4 Broadcast (BLE 0x2A37) · ${liveSample.sensorContact.label}",
+                detailNote = "Real-time stream active. When broadcast turns off, NothingWear automatically switches to Health Connect background readings.",
+                timestampMillis = liveSample.timestampMillis,
+            )
+        }
+
+        if (health.heartRateSummary.status == MetricAvailabilityStatus.VERIFIED) {
+            return UnifiedHeartRateSummary(
+                primaryBpmText = health.heartRateSummary.primaryValue,
+                source = UnifiedHeartRateSource.HEALTH_CONNECT,
+                sourceCaption = "Automatic background sync · ${health.heartRateSummary.sourceLabel}",
+                detailNote = "${health.heartRateSummary.detailNote}. Works even when Watch S4 Heart Rate Broadcast is OFF.",
+                timestampMillis = health.heartRateSummary.updatedAtMillis,
+            )
+        }
+
+        val cached = health.lastVerifiedHeartRate
+        if (cached != null) {
+            return UnifiedHeartRateSummary(
+                primaryBpmText = cached.bpm.toString(),
+                source = UnifiedHeartRateSource.LAST_VERIFIED_CACHE,
+                sourceCaption = "Last verified reading · ${cached.sourceLabel}",
+                detailNote = "Watch S4 Broadcast is off and no newer Health Connect sample arrived yet. Enable Mi Fitness → Health Connect for automatic periodic updates.",
+                timestampMillis = cached.timestampMillis,
+            )
+        }
+
+        return UnifiedHeartRateSummary(
+            primaryBpmText = "--",
+            source = UnifiedHeartRateSource.UNAVAILABLE,
+            sourceCaption = "No verified heart rate reading yet",
+            detailNote = "For automatic BPM outside live broadcast, enable Mi Fitness → Profile → Third-party data → Health Connect and grant read access below.",
+            timestampMillis = null,
+        )
     }
 
     private data class LocalControls(

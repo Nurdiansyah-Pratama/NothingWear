@@ -27,6 +27,10 @@ class DashboardViewModel @Inject constructor(
         )
 
     init {
+        onRefreshHealth()
+    }
+
+    fun onRefreshHealth() {
         viewModelScope.launch {
             refreshHealthData()
         }

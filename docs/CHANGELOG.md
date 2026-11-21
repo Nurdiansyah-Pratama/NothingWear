@@ -8,6 +8,7 @@
 - Added Android Health Connect (`androidx.health.connect:connect-client:1.1.0`) read-only integration (`AndroidHealthRepository`) with on-demand `READ_STEPS`, `READ_HEART_RATE`, `READ_SLEEP` permissions and Android 13/14/15 `AndroidManifest.xml` rationale/usage handlers, surfacing verified origin package attribution and explicit `PERMISSION NEEDED` / `NO DATA` / `UNAVAILABLE` states.
 - Built `HealthDashboardScreen` (`health/dashboard` route reachable from Home Dashboard and Devices tab) showing Wearable Telemetry capabilities, Live BLE Heart Rate (`0x2A37`) with mini sparkline bars, Health Connect metric cards, separated Host Phone companion environment, and Data Provenance policy.
 - Integrated compact live verified `Health & Telemetry` overview card directly into Home `DashboardScreen`, replacing the M2 `TODO(M6)` placeholder in `DevicesScreen`.
+- Upgraded M6 with **Unified Heart Rate Auto-Switch** (`LIVE BLE 0x2A37` → `HEALTH CONNECT AUTO` 24h background sync → persisted `LAST VERIFIED` DataStore reading with honest timestamp/source), automatic `ON_RESUME` refresh on Home & Health screens, and 1-tap **Open Android Health Connect Settings** shortcut.
 - Added `HealthDashboardViewModelTest` and updated `DashboardViewModelTest`.
 
 ## [0.5.0-m5] — M5 Watch Face Studio (2026-11-21)

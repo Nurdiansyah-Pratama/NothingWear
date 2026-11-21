@@ -1,5 +1,6 @@
 package com.nothingwear.app.features.health
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.BluetoothConnected
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -40,10 +42,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nothingwear.app.core.designsystem.component.NothingSectionHeader
 import com.nothingwear.app.core.designsystem.component.NothingStatusBadge
@@ -54,7 +60,7 @@ import com.nothingwear.app.domain.model.BleHeartRateSample
 import com.nothingwear.app.domain.model.HealthConnectAvailability
 import com.nothingwear.app.domain.model.HealthMetricSummary
 import com.nothingwear.app.domain.model.MetricAvailabilityStatus
-import com.nothingwear.app.domain.model.WatchConnectionState
+import com.nothingwear.app.domain.model.UnifiedHeartRateSource
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -68,10 +74,15 @@ fun HealthDashboardRoute(
     viewModel: HealthDashboardViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val healthPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
         onResult = viewModel::onHealthPermissionsResult,
     )
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.onRefreshAll()
+    }
 
     HealthDashboardScreen(
         uiState = uiState,
@@ -79,6 +90,11 @@ fun HealthDashboardRoute(
         onRefreshAll = viewModel::onRefreshAll,
         onRequestHealthPermissions = {
             healthPermissionLauncher.launch(viewModel.requiredHealthPermissions)
+        },
+        onOpenHealthConnectSettings = {
+            runCatching {
+                context.startActivity(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
+            }
         },
         onConnectWatchForHr = viewModel::onConnectWatchForHr,
         onToggleLiveBleHeartRate = viewModel::onToggleLiveBleHeartRate,
@@ -93,12 +109,14 @@ fun HealthDashboardScreen(
     onBack: () -> Unit,
     onRefreshAll: () -> Unit,
     onRequestHealthPermissions: () -> Unit,
+    onOpenHealthConnectSettings: () -> Unit,
     onConnectWatchForHr: () -> Unit,
     onToggleLiveBleHeartRate: () -> Unit,
     onOpenDevices: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val health = uiState.healthSnapshot
+    val unifiedHr = uiState.unifiedHeartRate
     val session = uiState.gattSession
     val hrState = uiState.bleHeartRate
 
@@ -284,19 +302,16 @@ fun HealthDashboardScreen(
             }
         }
 
-        // 2. Live Standard BLE Heart Rate Monitor (0x180D / 0x2A37)
+        // 2. Unified Heart Rate Monitor (Auto-Switch: Live BLE 0x2A37 -> Health Connect Auto -> Last Verified)
         item {
             NothingSectionHeader(
-                title = "Live BLE Heart Rate (0x2A37)",
+                title = "Heart Rate (Live & Auto-Sync)",
                 trailingContent = {
                     NothingStatusBadge(
-                        label = when {
-                            hrState.latestSample != null && hrState.isListening -> "LIVE BPM"
-                            hrState.isListening -> "LISTENING"
-                            hrState.isServiceExposed -> "READY"
-                            else -> "CONNECT FIRST"
-                        },
-                        dotColor = if (hrState.isListening) {
+                        label = unifiedHr.source.badgeLabel,
+                        dotColor = if (unifiedHr.source == UnifiedHeartRateSource.LIVE_BLE ||
+                            unifiedHr.source == UnifiedHeartRateSource.HEALTH_CONNECT
+                        ) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -314,23 +329,28 @@ fun HealthDashboardScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(NothingSpacing.sm),
+                        modifier = Modifier.weight(1f),
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.MonitorHeart,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(26.dp),
+                            modifier = Modifier.size(28.dp),
                         )
                         Column {
                             Text(
-                                text = hrState.latestSample?.let { "${it.bpm} BPM" } ?: "-- BPM",
+                                text = "${unifiedHr.primaryBpmText} BPM",
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = hrState.latestSample?.let { sample ->
-                                    "${sample.sensorContact.label} · ${formatShortTime(sample.timestampMillis)}"
-                                } ?: "Standard Bluetooth SIG 0x180D / 0x2A37",
+                                text = buildString {
+                                    append(unifiedHr.sourceCaption)
+                                    unifiedHr.timestampMillis?.let { ts ->
+                                        append(" · ")
+                                        append(formatShortTime(ts))
+                                    }
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -340,17 +360,24 @@ fun HealthDashboardScreen(
                         HeartRateMiniBars(
                             samples = hrState.recentSamples,
                             modifier = Modifier
-                                .size(width = 96.dp, height = 38.dp),
+                                .size(width = 92.dp, height = 38.dp),
                         )
                     }
                 }
 
-                if (!hrState.statusNote.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                Text(
+                    text = unifiedHr.detailNote,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                if (hrState.isListening && !hrState.statusNote.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(NothingSpacing.xxs))
                     Text(
                         text = hrState.statusNote,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
 
@@ -369,9 +396,9 @@ fun HealthDashboardScreen(
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(
                         text = if (hrState.isListening) {
-                            "Stop Live BLE Heart Rate"
+                            "Stop Live BLE Broadcast Stream"
                         } else {
-                            "Listen Live BLE Heart Rate (0x2A37)"
+                            "Listen Live BLE Broadcast (0x2A37)"
                         },
                     )
                 }
@@ -440,6 +467,23 @@ fun HealthDashboardScreen(
                 HealthMetricCard(metric = health.stepsToday)
                 HealthMetricCard(metric = health.heartRateSummary)
                 HealthMetricCard(metric = health.sleepLast24h)
+            }
+
+            if (health.healthConnectAvailability == HealthConnectAvailability.AVAILABLE) {
+                Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                OutlinedButton(
+                    onClick = onOpenHealthConnectSettings,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(NothingRadius.sm),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text("Open Android Health Connect Settings")
+                }
             }
 
             if (health.dataOrigins.isNotEmpty()) {

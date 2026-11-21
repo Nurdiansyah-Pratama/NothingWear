@@ -5,6 +5,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
@@ -19,13 +25,15 @@ import com.nothingwear.app.domain.model.HealthConnectAvailability
 import com.nothingwear.app.domain.model.HealthDashboardSnapshot
 import com.nothingwear.app.domain.model.HealthMetricSummary
 import com.nothingwear.app.domain.model.HostPhoneEnvironment
+import com.nothingwear.app.domain.model.LastVerifiedHeartRate
 import com.nothingwear.app.domain.model.MetricAvailabilityStatus
 import com.nothingwear.app.domain.repository.HealthRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
@@ -46,6 +54,7 @@ import javax.inject.Singleton
 @Singleton
 class AndroidHealthRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val dataStore: DataStore<Preferences>,
     private val timeProvider: TimeProvider,
     @param:IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : HealthRepository {
@@ -63,9 +72,49 @@ class AndroidHealthRepository @Inject constructor(
         ),
     )
 
-    override fun observeHealthSnapshot(): Flow<HealthDashboardSnapshot> = _snapshot.asStateFlow()
+    private val lastVerifiedHrFlow: Flow<LastVerifiedHeartRate?> = dataStore.data.map { prefs ->
+        val bpm = prefs[KEY_LAST_HR_BPM]
+        val ts = prefs[KEY_LAST_HR_TIMESTAMP]
+        val src = prefs[KEY_LAST_HR_SOURCE]
+        if (bpm != null && bpm in 1..300 && ts != null && ts > 0L && !src.isNullOrBlank()) {
+            LastVerifiedHeartRate(bpm = bpm, timestampMillis = ts, sourceLabel = src)
+        } else {
+            null
+        }
+    }
+
+    override fun observeHealthSnapshot(): Flow<HealthDashboardSnapshot> = combine(
+        _snapshot,
+        lastVerifiedHrFlow,
+    ) { snapshot, cachedHr ->
+        snapshot.copy(lastVerifiedHeartRate = cachedHr)
+    }
 
     override fun requiredHealthConnectPermissions(): Set<String> = requiredPermissions
+
+    override suspend fun recordVerifiedBleHeartRate(bpm: Int, timestampMillis: Long) {
+        if (bpm !in 1..300 || timestampMillis <= 0L) return
+        persistLastVerifiedHeartRate(
+            bpm = bpm,
+            timestampMillis = timestampMillis,
+            sourceLabel = "Watch S4 Live BLE (0x2A37)",
+        )
+    }
+
+    private suspend fun persistLastVerifiedHeartRate(
+        bpm: Int,
+        timestampMillis: Long,
+        sourceLabel: String,
+    ) = withContext(ioDispatcher) {
+        dataStore.edit { prefs ->
+            val existingTs = prefs[KEY_LAST_HR_TIMESTAMP] ?: 0L
+            if (timestampMillis >= existingTs) {
+                prefs[KEY_LAST_HR_BPM] = bpm
+                prefs[KEY_LAST_HR_TIMESTAMP] = timestampMillis
+                prefs[KEY_LAST_HR_SOURCE] = sourceLabel
+            }
+        }
+    }
 
     override suspend fun refreshHealthData() = withContext(ioDispatcher) {
         val nowMillis = timeProvider.nowMillis()
@@ -224,30 +273,43 @@ class AndroidHealthRepository @Inject constructor(
         now: Instant,
         origins: MutableSet<String>,
     ): HealthMetricSummary {
+        // Query at least the last 24h so overnight / recent background Watch S4 readings stay visible
+        val lookbackStart = minOf(startOfDay, now.minus(24, ChronoUnit.HOURS))
         val records = client.readRecords(
             ReadRecordsRequest(
                 recordType = HeartRateRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(startOfDay, now),
+                timeRangeFilter = TimeRangeFilter.between(lookbackStart, now),
             ),
         ).records
         records.forEach { origins.add(it.metadata.dataOrigin.packageName) }
 
-        val allSamples = records.flatMap { it.samples }
-        val latest = allSamples.maxByOrNull { it.time }
+        val allSamples = records.flatMap { record ->
+            record.samples.map { sample -> sample to record.metadata.dataOrigin.packageName }
+        }
+        val latestPair = allSamples.maxByOrNull { it.first.time }
 
-        return if (latest != null) {
-            val minBpm = allSamples.minOf { it.beatsPerMinute }
-            val maxBpm = allSamples.maxOf { it.beatsPerMinute }
-            val originPkg = records.lastOrNull()?.metadata?.dataOrigin?.packageName
-            val originSuffix = originPkg?.let { " · $it" } ?: ""
+        return if (latestPair != null) {
+            val latestSample = latestPair.first
+            val originPkg = latestPair.second
+            val minBpm = allSamples.minOf { it.first.beatsPerMinute }
+            val maxBpm = allSamples.maxOf { it.first.beatsPerMinute }
+            val originLabel = formatOriginDisplayName(originPkg)
+            val tsMillis = latestSample.time.toEpochMilli()
+
+            persistLastVerifiedHeartRate(
+                bpm = latestSample.beatsPerMinute.toInt(),
+                timestampMillis = tsMillis,
+                sourceLabel = "$originLabel via Health Connect",
+            )
+
             HealthMetricSummary(
                 title = "Heart Rate",
-                primaryValue = latest.beatsPerMinute.toString(),
+                primaryValue = latestSample.beatsPerMinute.toString(),
                 unit = "BPM",
                 status = MetricAvailabilityStatus.VERIFIED,
-                sourceLabel = "Health Connect",
-                detailNote = "Today range: $minBpm–$maxBpm BPM (${allSamples.size} samples)$originSuffix",
-                updatedAtMillis = latest.time.toEpochMilli(),
+                sourceLabel = "$originLabel (Health Connect)",
+                detailNote = "24h range: $minBpm–$maxBpm BPM (${allSamples.size} samples) · $originPkg",
+                updatedAtMillis = tsMillis,
             )
         } else {
             HealthMetricSummary(
@@ -256,9 +318,16 @@ class AndroidHealthRepository @Inject constructor(
                 unit = "BPM",
                 status = MetricAvailabilityStatus.NO_DATA,
                 sourceLabel = "Health Connect",
-                detailNote = "No heart rate records in Health Connect today. You can also stream live BLE HR (0x2A37) below.",
+                detailNote = "No heart rate records synced in Health Connect (last 24h). Enable Health Connect sync in Mi Fitness → Profile → Third-party data.",
             )
         }
+    }
+
+    private fun formatOriginDisplayName(packageName: String): String = when {
+        packageName.contains("xiaomi.wearable", ignoreCase = true) ||
+            packageName.contains("mi.health", ignoreCase = true) -> "Mi Fitness"
+        packageName.contains("google.android.apps.fitness", ignoreCase = true) -> "Google Fit"
+        else -> packageName.substringAfterLast('.')
     }
 
     private suspend fun readRecentSleep(
@@ -348,4 +417,10 @@ class AndroidHealthRepository @Inject constructor(
         sourceLabel = "Health Connect",
         detailNote = note,
     )
+
+    private companion object {
+        val KEY_LAST_HR_BPM = intPreferencesKey("last_verified_hr_bpm")
+        val KEY_LAST_HR_TIMESTAMP = longPreferencesKey("last_verified_hr_timestamp")
+        val KEY_LAST_HR_SOURCE = stringPreferencesKey("last_verified_hr_source")
+    }
 }

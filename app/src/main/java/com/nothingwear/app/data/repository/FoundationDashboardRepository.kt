@@ -146,11 +146,13 @@ class FoundationDashboardRepository @Inject constructor(
             "Native Events app: UNSUPPORTED (WearAuthV2). Tap to enable the Watch Reminder Bridge fallback."
         }
 
-        val liveBleHr = session.heartRateState.latestSample
+        val liveBleHr = session.heartRateState.latestSample.takeIf { session.heartRateState.isListening }
+        val cachedHr = healthSnapshot.lastVerifiedHeartRate
         val effectiveHrValue = when {
             liveBleHr != null -> "${liveBleHr.bpm} BPM"
             healthSnapshot.heartRateSummary.status == MetricAvailabilityStatus.VERIFIED ->
                 "${healthSnapshot.heartRateSummary.primaryValue} BPM"
+            cachedHr != null -> "${cachedHr.bpm} BPM"
             else -> "--"
         }
         val effectiveStepsValue = if (healthSnapshot.stepsToday.status == MetricAvailabilityStatus.VERIFIED) {
@@ -164,13 +166,17 @@ class FoundationDashboardRepository @Inject constructor(
             "--"
         }
         val hasVerifiedHealth = liveBleHr != null ||
+            cachedHr != null ||
             healthSnapshot.stepsToday.status == MetricAvailabilityStatus.VERIFIED ||
             healthSnapshot.heartRateSummary.status == MetricAvailabilityStatus.VERIFIED ||
             healthSnapshot.sleepLast24h.status == MetricAvailabilityStatus.VERIFIED
 
         val healthBadge = when {
             liveBleHr != null -> "LIVE BLE HR"
-            hasVerifiedHealth -> "VERIFIED"
+            healthSnapshot.stepsToday.status == MetricAvailabilityStatus.VERIFIED ||
+                healthSnapshot.heartRateSummary.status == MetricAvailabilityStatus.VERIFIED ||
+                healthSnapshot.sleepLast24h.status == MetricAvailabilityStatus.VERIFIED -> "AUTO SYNC"
+            cachedHr != null -> "LAST VERIFIED"
             healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE &&
                 !healthSnapshot.hasHealthPermissions -> "GRANT ACCESS"
             healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE -> "NO DATA"
@@ -178,13 +184,21 @@ class FoundationDashboardRepository @Inject constructor(
         }
         val healthDetail = when {
             liveBleHr != null -> "Live verified BLE Heart Rate (0x2A37): ${liveBleHr.bpm} BPM. Tap for full Health & Device telemetry."
-            hasVerifiedHealth -> {
+            healthSnapshot.heartRateSummary.status == MetricAvailabilityStatus.VERIFIED -> {
+                "Auto-synced via ${healthSnapshot.heartRateSummary.sourceLabel} (works even outside live broadcast)."
+            }
+            healthSnapshot.stepsToday.status == MetricAvailabilityStatus.VERIFIED ||
+                healthSnapshot.sleepLast24h.status == MetricAvailabilityStatus.VERIFIED -> {
                 val origins = healthSnapshot.dataOrigins.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "Health Connect"
                 "Verified via Health Connect ($origins). Watch battery remains UNAVAILABLE unless exposed via 0x2A19."
             }
+            cachedHr != null -> {
+                val formatted = AgendaTimeWindows.formatSyncTimestamp(cachedHr.timestampMillis, zoneId)
+                "Last verified HR: ${cachedHr.bpm} BPM (${cachedHr.sourceLabel} · $formatted). Enable Mi Fitness → Health Connect for auto updates."
+            }
             healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE &&
                 !healthSnapshot.hasHealthPermissions ->
-                "Tap to authorize read-only Health Connect (Steps, HR, Sleep) or stream live standard BLE HR (0x2A37)."
+                "Tap to authorize read-only Health Connect (auto background Steps, HR, Sleep) or stream live BLE HR (0x2A37)."
             healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE ->
                 "Health Connect authorized, no synced records yet. Enable Health Connect sync in Mi Fitness → Profile → Third-party data."
             else ->

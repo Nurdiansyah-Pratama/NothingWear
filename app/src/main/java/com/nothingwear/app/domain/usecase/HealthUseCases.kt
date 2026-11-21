@@ -22,3 +22,10 @@ class GetRequiredHealthPermissionsUseCase @Inject constructor(
 ) {
     operator fun invoke(): Set<String> = repository.requiredHealthConnectPermissions()
 }
+
+class RecordVerifiedBleHeartRateUseCase @Inject constructor(
+    private val repository: HealthRepository,
+) {
+    suspend operator fun invoke(bpm: Int, timestampMillis: Long) =
+        repository.recordVerifiedBleHeartRate(bpm, timestampMillis)
+}
