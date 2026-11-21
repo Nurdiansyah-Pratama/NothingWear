@@ -5,6 +5,7 @@ import com.nothingwear.app.domain.model.CalendarEvent
 import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
+import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceDialStyle
 import com.nothingwear.app.domain.model.WatchFaceExportArtifact
@@ -117,7 +118,22 @@ class WatchFaceStudioViewModelTest {
 
         assertNotNull(viewModel.uiState.value.lastExportArtifact)
         assertEquals(466, viewModel.uiState.value.lastExportArtifact?.widthPx)
+        assertEquals(false, viewModel.uiState.value.lastExportArtifact?.backgroundOnly)
         assertTrue(viewModel.uiState.value.feedbackMessage?.contains("466×466") == true)
+
+        viewModel.onSelectMiFitnessTemplate(MiFitnessCustomTemplate.CUSTOM_ANALOG)
+        viewModel.onToggleSafeZoneGuides(false)
+        viewModel.onExportBackgroundOnly()
+        advanceUntilIdle()
+
+        assertEquals(MiFitnessCustomTemplate.CUSTOM_ANALOG, viewModel.uiState.value.miFitnessTemplate)
+        assertEquals(false, viewModel.uiState.value.showSafeZoneGuides)
+        assertEquals(true, viewModel.uiState.value.lastExportArtifact?.backgroundOnly)
+        assertEquals(
+            MiFitnessCustomTemplate.CUSTOM_ANALOG,
+            viewModel.uiState.value.lastExportArtifact?.miFitnessTemplate,
+        )
+        assertTrue(viewModel.uiState.value.feedbackMessage?.contains("Custom analog") == true)
 
         job.cancel()
     }
@@ -143,12 +159,16 @@ class WatchFaceStudioViewModelTest {
             project: WatchFaceProject,
             nextEventLabel: String?,
             savePngToGallery: Boolean,
+            backgroundOnly: Boolean,
+            miFitnessTemplate: MiFitnessCustomTemplate,
         ): WatchFaceExportResult = WatchFaceExportResult.ExportedPreviewAndSpec(
             WatchFaceExportArtifact(
                 projectName = project.name,
                 pngFilePath = "/tmp/test.png",
                 jsonFilePath = "/tmp/test.json",
                 savedToGallery = savePngToGallery,
+                backgroundOnly = backgroundOnly,
+                miFitnessTemplate = miFitnessTemplate,
                 exportedAtMillis = 1_763_690_000_000L,
             ),
         )

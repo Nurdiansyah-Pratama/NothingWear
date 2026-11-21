@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Button
@@ -52,6 +53,7 @@ import com.nothingwear.app.core.designsystem.component.NothingStatusBadge
 import com.nothingwear.app.core.designsystem.component.NothingSurfaceCard
 import com.nothingwear.app.core.designsystem.theme.NothingRadius
 import com.nothingwear.app.core.designsystem.theme.NothingSpacing
+import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceColorPreset
 import com.nothingwear.app.domain.model.WatchFaceComplication
@@ -70,6 +72,8 @@ fun WatchFaceStudioRoute(
     WatchFaceStudioScreen(
         uiState = uiState,
         onSelectTab = viewModel::onSelectTab,
+        onSelectMiFitnessTemplate = viewModel::onSelectMiFitnessTemplate,
+        onToggleSafeZoneGuides = viewModel::onToggleSafeZoneGuides,
         onSelectCategoryPreset = viewModel::onSelectCategoryPreset,
         onProjectNameChanged = viewModel::onProjectNameChanged,
         onBackgroundColorSelected = viewModel::onBackgroundColorSelected,
@@ -89,6 +93,7 @@ fun WatchFaceStudioRoute(
         onSaveProjectCopy = { viewModel.onSaveProject(asNewCopy = true) },
         onLoadProject = viewModel::onLoadProject,
         onDeleteProject = viewModel::onDeleteProject,
+        onExportBackgroundOnly = viewModel::onExportBackgroundOnly,
         onExportPreviewAndSpec = viewModel::onExportPreviewAndSpec,
         modifier = modifier,
     )
@@ -98,6 +103,8 @@ fun WatchFaceStudioRoute(
 fun WatchFaceStudioScreen(
     uiState: WatchFaceStudioUiState,
     onSelectTab: (StudioEditorTab) -> Unit,
+    onSelectMiFitnessTemplate: (MiFitnessCustomTemplate) -> Unit,
+    onToggleSafeZoneGuides: (Boolean) -> Unit,
     onSelectCategoryPreset: (WatchFaceCategory) -> Unit,
     onProjectNameChanged: (String) -> Unit,
     onBackgroundColorSelected: (Long) -> Unit,
@@ -117,6 +124,7 @@ fun WatchFaceStudioScreen(
     onSaveProjectCopy: () -> Unit,
     onLoadProject: (WatchFaceProject) -> Unit,
     onDeleteProject: (Long) -> Unit,
+    onExportBackgroundOnly: () -> Unit,
     onExportPreviewAndSpec: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -173,7 +181,11 @@ fun WatchFaceStudioScreen(
                             modifier = Modifier.weight(1f),
                         )
                         NothingStatusBadge(
-                            label = "466×466 PREVIEW",
+                            label = if (uiState.miFitnessTemplate == MiFitnessCustomTemplate.NONE) {
+                                "466×466 PREVIEW"
+                            } else {
+                                "KUSTOM: ${uiState.miFitnessTemplate.displayName.uppercase()}"
+                            },
                             dotColor = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -182,15 +194,32 @@ fun WatchFaceStudioScreen(
                         project = uiState.draft,
                         nextEventLabel = uiState.nextCalendarEventLabel,
                         diameter = 232.dp,
+                        miFitnessTemplate = uiState.miFitnessTemplate,
+                        showSafeZoneGuides = uiState.showSafeZoneGuides,
                     )
                     Spacer(modifier = Modifier.height(NothingSpacing.sm))
                     Text(
-                        text = "Preview only — not an installable Watch S4 binary (.bin/.face). Export PNG + JSON in the Export tab.",
+                        text = if (uiState.miFitnessTemplate == MiFitnessCustomTemplate.NONE) {
+                            "Preview mode — select a Mi Fitness Kustom template below to align safe zones and export a clean Background-Only PNG."
+                        } else {
+                            "Cyan dashed guides show Mi Fitness's live clock/hands position (excluded from exported PNG)."
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
+        }
+
+        item {
+            MiFitnessTemplateCard(
+                selectedTemplate = uiState.miFitnessTemplate,
+                showSafeZoneGuides = uiState.showSafeZoneGuides,
+                isExporting = uiState.isExporting,
+                onSelectTemplate = onSelectMiFitnessTemplate,
+                onToggleSafeZoneGuides = onToggleSafeZoneGuides,
+                onQuickExportBackgroundOnly = onExportBackgroundOnly,
+            )
         }
 
         if (!uiState.feedbackMessage.isNullOrBlank()) {
@@ -493,7 +522,7 @@ fun WatchFaceStudioScreen(
                         }
                         Spacer(modifier = Modifier.height(NothingSpacing.xs))
                         Button(
-                            onClick = onExportPreviewAndSpec,
+                            onClick = onExportBackgroundOnly,
                             enabled = !uiState.isExporting,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(NothingRadius.sm),
@@ -508,20 +537,50 @@ fun WatchFaceStudioScreen(
                                 Text("Rendering 466×466...")
                             } else {
                                 Icon(
-                                    imageVector = Icons.Outlined.Download,
+                                    imageVector = Icons.Outlined.Image,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
                                 )
                                 Spacer(modifier = Modifier.size(6.dp))
-                                Text("Export 466×466 PNG + JSON Spec")
+                                Text(
+                                    text = if (uiState.miFitnessTemplate == MiFitnessCustomTemplate.NONE) {
+                                        "Export Background Only (Mi Fitness Kustom)"
+                                    } else {
+                                        "Export Background Only (${uiState.miFitnessTemplate.displayName})"
+                                    },
+                                )
                             }
+                        }
+                        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                        OutlinedButton(
+                            onClick = onExportPreviewAndSpec,
+                            enabled = !uiState.isExporting,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(NothingRadius.sm),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Export Full Preview PNG + JSON Spec")
                         }
 
                         uiState.lastExportArtifact?.let { artifact ->
                             Spacer(modifier = Modifier.height(NothingSpacing.sm))
+                            val modeLabel = if (artifact.backgroundOnly) {
+                                if (artifact.miFitnessTemplate != MiFitnessCustomTemplate.NONE) {
+                                    "Background Only · ${artifact.miFitnessTemplate.displayName}"
+                                } else {
+                                    "Background Only"
+                                }
+                            } else {
+                                "Full Preview"
+                            }
                             Text(
-                                text = "Last export: ${artifact.widthPx}×${artifact.heightPx} PNG" +
-                                    if (artifact.savedToGallery) " (also saved to Pictures/NothingWear)" else "",
+                                text = "Last export: $modeLabel (${artifact.widthPx}×${artifact.heightPx} PNG)" +
+                                    if (artifact.savedToGallery) " → Pictures/NothingWear" else "",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -633,13 +692,109 @@ fun WatchFaceStudioScreen(
                         }
                         Spacer(modifier = Modifier.height(NothingSpacing.xs))
                         Text(
-                            text = "• Verified Supported: 466×466 px PNG artwork (saved to Pictures/NothingWear — usable as a custom photo dial background in Mi Fitness → Watch Face → Photo) + portable JSON studio spec.\n" +
+                            text = "• Recommended Watch S4 Workflow: Pick a Mi Fitness Kustom template above (Custom analog, elegance, digital, postcard, or diamond) → customize colors & bezel ring → tap Export Background Only. Then open Mi Fitness → Watch Face → Kustom → choose the matching template → pick the clean 466×466 PNG from Pictures/NothingWear. Zero hand/clock overlap!\n" +
                                 "• Documented Limitation: Direct installation of compiled Xiaomi Vela watch-face binaries (.bin/.face via FaceInstallBleV2Impl) requires WearAuthV2 authenticated file transfer and Xiaomi's proprietary compiler. NothingWear keeps the editor decoupled and never claims a PNG preview is a native binary watch face.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MiFitnessTemplateCard(
+    selectedTemplate: MiFitnessCustomTemplate,
+    showSafeZoneGuides: Boolean,
+    isExporting: Boolean,
+    onSelectTemplate: (MiFitnessCustomTemplate) -> Unit,
+    onToggleSafeZoneGuides: (Boolean) -> Unit,
+    onQuickExportBackgroundOnly: () -> Unit,
+) {
+    NothingSurfaceCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "MI FITNESS KUSTOM ALIGNMENT",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "ZERO OVERLAP",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+            verticalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+        ) {
+            MiFitnessCustomTemplate.entries.forEach { template ->
+                val isSelected = template == selectedTemplate
+                Surface(
+                    onClick = { onSelectTemplate(template) },
+                    shape = RoundedCornerShape(NothingRadius.sm),
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    border = BorderStroke(
+                        1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    ),
+                ) {
+                    Text(
+                        text = template.displayName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isSelected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.padding(horizontal = NothingSpacing.sm, vertical = NothingSpacing.xs),
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+        Text(
+            text = selectedTemplate.safeZoneNote,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (selectedTemplate != MiFitnessCustomTemplate.NONE) {
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = NothingSpacing.sm),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            ToggleRow(
+                title = "Show Mi Fitness Safe-Zone Guide",
+                subtitle = "Preview where live clock/hands sit (never exported to PNG)",
+                checked = showSafeZoneGuides,
+                onCheckedChange = onToggleSafeZoneGuides,
+            )
+            Spacer(modifier = Modifier.height(NothingSpacing.xs))
+            Button(
+                onClick = onQuickExportBackgroundOnly,
+                enabled = !isExporting,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(NothingRadius.sm),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Image,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.size(6.dp))
+                Text("Export Background Only (${selectedTemplate.displayName})")
             }
         }
     }

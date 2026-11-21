@@ -1,5 +1,6 @@
 package com.nothingwear.app.features.watchface
 
+import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceExportArtifact
 import com.nothingwear.app.domain.model.WatchFacePresets
@@ -16,6 +17,8 @@ enum class StudioEditorTab(val label: String) {
 data class WatchFaceStudioUiState(
     val activeTab: StudioEditorTab = StudioEditorTab.THEMES,
     val draft: WatchFaceProject = WatchFacePresets.defaultFor(WatchFaceCategory.NOTHING),
+    val miFitnessTemplate: MiFitnessCustomTemplate = MiFitnessCustomTemplate.NONE,
+    val showSafeZoneGuides: Boolean = true,
     val savedProjects: List<WatchFaceProject> = emptyList(),
     val nextCalendarEventLabel: String? = null,
     val isExporting: Boolean = false,

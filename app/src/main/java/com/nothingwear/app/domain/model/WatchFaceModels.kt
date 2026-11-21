@@ -35,6 +35,41 @@ enum class WatchFaceComplication(val label: String) {
     HEART_RATE_SLOT("HR Slot"),
 }
 
+/**
+ * Official Mi Fitness "Kustom" Photo Watch Face templates on Xiaomi Watch S4.
+ * Selecting one enables Background-Only export & safe-zone framing so Mi Fitness's
+ * live watch hands or digital clock never overlap NothingWear artwork.
+ */
+enum class MiFitnessCustomTemplate(
+    val displayName: String,
+    val safeZoneNote: String,
+) {
+    NONE(
+        displayName = "Full Preview",
+        safeZoneNote = "Renders NothingWear's own clock & widgets (for design preview only).",
+    ),
+    CUSTOM_ANALOG(
+        displayName = "Custom analog",
+        safeZoneNote = "Clears center for Mi Fitness live analog hands; keeps precision Nothing bezel ring & subtle dial frame.",
+    ),
+    CUSTOM_ELEGANCE(
+        displayName = "Custom elegance",
+        safeZoneNote = "Clears center time/date & bottom battery zone for Mi Fitness 'Custom elegance' overlay.",
+    ),
+    CUSTOM_DIGITAL(
+        displayName = "Custom digital",
+        safeZoneNote = "Keeps left half dark & clean for Mi Fitness left-aligned time/date/battery; places Nothing accents on the right.",
+    ),
+    CUSTOM_POSTCARD(
+        displayName = "Custom postcard",
+        safeZoneNote = "Frames center hero graphic while keeping 9 o'clock, 3 o'clock & 6 o'clock clear for Mi Fitness time/date/day.",
+    ),
+    CUSTOM_DIAMOND(
+        displayName = "Custom diamond",
+        safeZoneNote = "Adds subtle radial halo behind center while keeping the big 4-digit stacked clock zone clean.",
+    ),
+}
+
 data class WatchFaceProject(
     val id: Long = 0L,
     val name: String,
@@ -64,6 +99,8 @@ data class WatchFaceExportArtifact(
     val pngFilePath: String,
     val jsonFilePath: String,
     val savedToGallery: Boolean,
+    val backgroundOnly: Boolean = false,
+    val miFitnessTemplate: MiFitnessCustomTemplate = MiFitnessCustomTemplate.NONE,
     val widthPx: Int = WatchFaceProject.TARGET_RESOLUTION_PX,
     val heightPx: Int = WatchFaceProject.TARGET_RESOLUTION_PX,
     val exportedAtMillis: Long,

@@ -3,6 +3,7 @@ package com.nothingwear.app.features.watchface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nothingwear.app.core.common.TimeProvider
+import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceComplication
 import com.nothingwear.app.domain.model.WatchFaceDialStyle
@@ -53,6 +54,8 @@ class WatchFaceStudioViewModel @Inject constructor(
         WatchFaceStudioUiState(
             activeTab = controls.activeTab,
             draft = controls.draft,
+            miFitnessTemplate = controls.miFitnessTemplate,
+            showSafeZoneGuides = controls.showSafeZoneGuides,
             savedProjects = savedProjects,
             nextCalendarEventLabel = nextEventTitle,
             isExporting = controls.isExporting,
@@ -67,6 +70,23 @@ class WatchFaceStudioViewModel @Inject constructor(
 
     fun onSelectTab(tab: StudioEditorTab) {
         editorState.update { it.copy(activeTab = tab) }
+    }
+
+    fun onSelectMiFitnessTemplate(template: MiFitnessCustomTemplate) {
+        editorState.update {
+            it.copy(
+                miFitnessTemplate = template,
+                feedbackMessage = if (template == MiFitnessCustomTemplate.NONE) {
+                    "Full Studio Preview mode — renders NothingWear's own clock & widgets."
+                } else {
+                    "Mi Fitness '${template.displayName}' mode active — ${template.safeZoneNote}"
+                },
+            )
+        }
+    }
+
+    fun onToggleSafeZoneGuides(enabled: Boolean) {
+        editorState.update { it.copy(showSafeZoneGuides = enabled) }
     }
 
     fun onSelectCategoryPreset(category: WatchFaceCategory) {
@@ -180,7 +200,25 @@ class WatchFaceStudioViewModel @Inject constructor(
         }
     }
 
+    fun onExportBackgroundOnly() {
+        val selectedTemplate = editorState.value.miFitnessTemplate
+        exportArtifactInternal(
+            backgroundOnly = true,
+            miFitnessTemplate = selectedTemplate,
+        )
+    }
+
     fun onExportPreviewAndSpec() {
+        exportArtifactInternal(
+            backgroundOnly = false,
+            miFitnessTemplate = MiFitnessCustomTemplate.NONE,
+        )
+    }
+
+    private fun exportArtifactInternal(
+        backgroundOnly: Boolean,
+        miFitnessTemplate: MiFitnessCustomTemplate,
+    ) {
         if (editorState.value.isExporting) return
         val draft = editorState.value.draft
         val nextEvent = uiState.value.nextCalendarEventLabel
@@ -190,17 +228,15 @@ class WatchFaceStudioViewModel @Inject constructor(
                 project = draft,
                 nextEventLabel = nextEvent,
                 savePngToGallery = true,
+                backgroundOnly = backgroundOnly,
+                miFitnessTemplate = miFitnessTemplate,
             )
             editorState.update { state ->
                 when (result) {
                     is WatchFaceExportResult.ExportedPreviewAndSpec -> state.copy(
                         isExporting = false,
                         lastExportArtifact = result.artifact,
-                        feedbackMessage = if (result.artifact.savedToGallery) {
-                            "Exported 466×466 PNG to Pictures/NothingWear + JSON spec (preview artwork, not a compiled Watch S4 binary)."
-                        } else {
-                            "Exported 466×466 PNG + JSON spec to app storage (preview artwork, not a compiled Watch S4 binary)."
-                        },
+                        feedbackMessage = buildExportFeedback(result.artifact),
                     )
 
                     is WatchFaceExportResult.Failed -> state.copy(
@@ -212,9 +248,25 @@ class WatchFaceStudioViewModel @Inject constructor(
         }
     }
 
+    private fun buildExportFeedback(artifact: WatchFaceExportArtifact): String {
+        val location = if (artifact.savedToGallery) "Pictures/NothingWear" else "app storage"
+        return if (artifact.backgroundOnly) {
+            val targetName = if (artifact.miFitnessTemplate != MiFitnessCustomTemplate.NONE) {
+                "Mi Fitness → Kustom → ${artifact.miFitnessTemplate.displayName}"
+            } else {
+                "Mi Fitness → Kustom (Photo Watch Face)"
+            }
+            "Exported clean 466×466 Background-Only PNG to $location (no hands/digits/guides) — ready for $targetName."
+        } else {
+            "Exported 466×466 full preview PNG to $location + JSON spec (preview artwork, not a compiled Watch S4 binary)."
+        }
+    }
+
     private data class EditorControls(
         val activeTab: StudioEditorTab = StudioEditorTab.THEMES,
         val draft: WatchFaceProject = WatchFacePresets.defaultFor(WatchFaceCategory.NOTHING),
+        val miFitnessTemplate: MiFitnessCustomTemplate = MiFitnessCustomTemplate.NONE,
+        val showSafeZoneGuides: Boolean = true,
         val isExporting: Boolean = false,
         val lastExportArtifact: WatchFaceExportArtifact? = null,
         val feedbackMessage: String? = null,

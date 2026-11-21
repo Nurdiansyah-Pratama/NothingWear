@@ -1,5 +1,6 @@
 package com.nothingwear.app.domain.repository
 
+import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
 import com.nothingwear.app.domain.model.WatchFaceExportResult
 import com.nothingwear.app.domain.model.WatchFaceProject
 import kotlinx.coroutines.flow.Flow
@@ -15,5 +16,7 @@ interface WatchFaceRepository {
         project: WatchFaceProject,
         nextEventLabel: String?,
         savePngToGallery: Boolean,
+        backgroundOnly: Boolean = false,
+        miFitnessTemplate: MiFitnessCustomTemplate = MiFitnessCustomTemplate.NONE,
     ): WatchFaceExportResult
 }

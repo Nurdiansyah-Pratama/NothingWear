@@ -19,4 +19,14 @@ class WatchFacePresetsTest {
         assertEquals(6, presets.map { it.name }.toSet().size)
         assertEquals(466, WatchFaceProject.TARGET_RESOLUTION_PX)
     }
+
+    @Test
+    fun allFiveMiFitnessKustomTemplatesHaveDistinctNamesAndSafeZoneNotes() {
+        val kustomTemplates = MiFitnessCustomTemplate.entries.filter { it != MiFitnessCustomTemplate.NONE }
+        assertEquals(5, kustomTemplates.size)
+        assertEquals(5, kustomTemplates.map { it.displayName }.toSet().size)
+        kustomTemplates.forEach { template ->
+            assertTrue(template.safeZoneNote.isNotBlank())
+        }
+    }
 }

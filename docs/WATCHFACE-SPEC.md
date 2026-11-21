@@ -22,7 +22,14 @@ Static inspection of `com.xiaomi.wearable 3.60.0i` confirmed Mi Fitness installs
 
 Accordingly, NothingWear strictly decouples the **Studio Editor** from **Binary Flashing**:
 - **Verified Supported Export:**
-  - Pixel-exact **466 × 466 px PNG** (exported to app storage `watchface-exports/` AND saved to `Pictures/NothingWear` via `MediaStore` on Android 10+ with zero storage permissions — immediately usable as a custom photo dial background inside Mi Fitness → Watch Face → Photo).
-  - Portable **JSON studio spec** (`schemaVersion = 1`, `installableBinaryWatchFace = false`).
+  - **Clean Background-Only 466 × 466 px PNG** (`_bg_<template>.png`, saved to `Pictures/NothingWear` via permissionless Android 10+ `MediaStore`): intentionally omits NothingWear clock hands, digital time, and preview safe-zone guides so Mi Fitness's live hands/digits sit cleanly on top with **zero overlap**.
+  - **5 Mi Fitness "Kustom" Safe-Zone Templates (`MiFitnessCustomTemplate`):**
+    1. `Custom analog` — Nothing precision bezel ring, inner dial track, cardinal brackets, and center pivot halo; center kept open for Mi Fitness live analog hands.
+    2. `Custom elegance` — Clean center time/date & bottom battery slot with sleek perimeter frame and side dot-matrix accents.
+    3. `Custom digital` — Clean dark left half for Mi Fitness stacked time/date/battery; Nothing vertical hairline & 5×9 dot-matrix telemetry motif on the right half.
+    4. `Custom postcard` — Clear 9 o'clock (time), 3 o'clock (date), and 6 o'clock (vertical day) zones with Nothing Glyph centerpiece in the middle.
+    5. `Custom diamond` — Soft concentric radial halo & 4 diagonal corner ticks framing Mi Fitness's large staggered 4-digit time.
+  - **Live Preview Safe-Zone Guide Overlay:** Toggleable cyan dashed guide + ghost clock/hands in `WatchFaceCanvasPreview` (preview-only; never rendered into exported PNGs).
+  - **Full Preview 466 × 466 px PNG + Portable JSON Studio Spec** (`schemaVersion = 1`, `installableBinaryWatchFace = false`, `backgroundOnly`, `miFitnessTemplate`).
 - **Documented Technical Limitation:**
   - A preview or PNG is **NOT** a native compiled Xiaomi Watch S4 watch-face package (`.bin`/`.face`). Direct third-party binary flashing is not enabled because it requires Xiaomi's proprietary dial compiler and `WearAuthV2` authenticated transfer.

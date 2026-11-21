@@ -4,6 +4,7 @@ import com.nothingwear.app.core.common.IoDispatcher
 import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.core.database.dao.WatchFaceDao
 import com.nothingwear.app.core.database.entity.WatchFaceProjectEntity
+import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceComplication
 import com.nothingwear.app.domain.model.WatchFaceDialStyle
@@ -51,6 +52,8 @@ class RoomWatchFaceRepository @Inject constructor(
         project: WatchFaceProject,
         nextEventLabel: String?,
         savePngToGallery: Boolean,
+        backgroundOnly: Boolean,
+        miFitnessTemplate: MiFitnessCustomTemplate,
     ): WatchFaceExportResult = withContext(ioDispatcher) {
         try {
             val now = timeProvider.nowMillis()
@@ -60,6 +63,8 @@ class RoomWatchFaceRepository @Inject constructor(
                 nowMillis = now,
                 zoneId = zoneId,
                 nextEventLabel = nextEventLabel,
+                backgroundOnly = backgroundOnly,
+                miFitnessTemplate = miFitnessTemplate,
             )
             try {
                 val (pngPath, jsonPath, gallerySaved) = bitmapRenderer.exportToFiles(
@@ -67,6 +72,8 @@ class RoomWatchFaceRepository @Inject constructor(
                     bitmap = bitmap,
                     exportedAtMillis = now,
                     saveToGallery = savePngToGallery,
+                    backgroundOnly = backgroundOnly,
+                    miFitnessTemplate = miFitnessTemplate,
                 )
                 WatchFaceExportResult.ExportedPreviewAndSpec(
                     WatchFaceExportArtifact(
@@ -74,6 +81,8 @@ class RoomWatchFaceRepository @Inject constructor(
                         pngFilePath = pngPath,
                         jsonFilePath = jsonPath,
                         savedToGallery = gallerySaved,
+                        backgroundOnly = backgroundOnly,
+                        miFitnessTemplate = miFitnessTemplate,
                         exportedAtMillis = now,
                     ),
                 )

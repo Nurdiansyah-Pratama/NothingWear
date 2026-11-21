@@ -1,5 +1,6 @@
 package com.nothingwear.app.domain.usecase
 
+import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
 import com.nothingwear.app.domain.model.WatchFaceExportResult
 import com.nothingwear.app.domain.model.WatchFaceProject
 import com.nothingwear.app.domain.repository.WatchFaceRepository
@@ -31,9 +32,13 @@ class ExportWatchFaceArtifactUseCase @Inject constructor(
         project: WatchFaceProject,
         nextEventLabel: String?,
         savePngToGallery: Boolean = true,
+        backgroundOnly: Boolean = false,
+        miFitnessTemplate: MiFitnessCustomTemplate = MiFitnessCustomTemplate.NONE,
     ): WatchFaceExportResult = repository.exportPreviewAndSpec(
         project = project,
         nextEventLabel = nextEventLabel,
         savePngToGallery = savePngToGallery,
+        backgroundOnly = backgroundOnly,
+        miFitnessTemplate = miFitnessTemplate,
     )
 }
