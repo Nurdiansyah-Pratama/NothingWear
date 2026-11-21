@@ -48,6 +48,8 @@ fun NothingStatusBadge(
             text = label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
             color = contentColor,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

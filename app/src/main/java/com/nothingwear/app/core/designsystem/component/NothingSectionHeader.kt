@@ -8,6 +8,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import com.nothingwear.app.core.designsystem.theme.NothingSpacing
 
 @Composable
 fun NothingSectionHeader(
@@ -17,13 +19,16 @@ fun NothingSectionHeader(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title.uppercase(),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
         trailingContent?.invoke()
     }
