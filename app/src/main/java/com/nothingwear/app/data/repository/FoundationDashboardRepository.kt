@@ -223,7 +223,7 @@ class FoundationDashboardRepository @Inject constructor(
                 todayEvents = todayEvents,
                 upcomingEvents = upcomingEvents,
             ),
-            currentMilestone = "M6 · Health & Device",
+            currentMilestone = "v1.0.0",
         )
     }
 

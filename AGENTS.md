@@ -68,5 +68,5 @@ Request permissions only when the corresponding milestone feature is active:
 - **M3 — Mi Fitness Reverse Engineering:** Completed & reviewed.
 - **M4 — Native Events Synchronization:** Completed & physically verified on Infinix X6880 + Xiaomi Watch S4.
 - **M5 — Watch Face Studio:** Completed & verified on Infinix X6880 + Mi Fitness Kustom Watch S4 (466×466 editor, 6 categories, Room v2, 5 Mi Fitness Kustom safe-zone templates & clean background-only PNG export).
-- **M6 — Health & Device Dashboard:** Completed (verified BLE telemetry, live standard BLE Heart Rate `0x180D / 0x2A37` monitor, read-only Android Health Connect `1.1.0` Steps/HR/Sleep, separated host phone telemetry, explicit unavailable states — pending user verification & approval for M7).
-- **M7 — Integration & Release:** Not started.
+- **M6 — Health & Device Dashboard:** Completed & physically verified on Infinix X6880 + Xiaomi Watch S4 (live BLE Heart Rate `0x2A37`, Health Connect `1.1.0` Steps & Sleep, Unified Auto-Switch Heart Rate + DataStore Last Verified cache, `ON_RESUME` auto-refresh).
+- **M7 — Integration & Release:** Completed (`v1.0.0`, `versionCode = 7` — Room `MIGRATION_1_2` instrumented & JVM verification, Infinix XOS 15 battery optimization check in Settings, R8 `:app:assembleRelease`, and `docs/RELEASE-NOTES-1.0.0.md`).

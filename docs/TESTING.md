@@ -15,9 +15,13 @@
 python -m unittest discover -s protocol-lab/packet-parser -p "test_*.py" -v
 ```
 
-## M0–M5 Test Coverage
-- `WatchFacePresetsTest`: Verifies all 6 Watch Face Studio categories produce distinct valid 466×466 presets.
-- `WatchFaceStudioViewModelTest`: Verifies preset switching, customization, Room project save/load flow, live Next Event integration, and 466×466 PNG + JSON export result.
+## M0–M7 Test Coverage
+- `RoomMigrationTest` (`androidTest` on physical Infinix X6880): Verifies real SQLite non-destructive Room migration `1 → 2` (`MIGRATION_1_2`) preserves `calendar_accounts` & `calendar_events` and creates `watch_face_projects`.
+- `RoomSchemaIntegrityTest`: Verifies exported `1.json` & `2.json` Room schema snapshots and `MIGRATION_1_2` version contract.
+- `HeartRateMeasurementParserTest`: Verifies Bluetooth SIG `0x2A37` 8-bit/16-bit BPM decoding, sensor contact bits, energy expended, RR intervals, and malformed packet rejection.
+- `HealthDashboardViewModelTest`: Verifies Health Connect metrics, Watch S4 detection, live BLE HR `0x2A37` toggle, automatic `LIVE_BLE` → `LAST_VERIFIED_CACHE` fallback, and permission feedback.
+- `WatchFacePresetsTest`: Verifies all 6 Watch Face Studio categories and all 5 Mi Fitness Kustom safe-zone templates.
+- `WatchFaceStudioViewModelTest`: Verifies preset switching, customization, Room project save/load flow, live Next Event integration, and full + Background-Only 466×466 PNG export.
 - `XiaomiWatchS4ProtocolAdapterTest` (`:protocol-adapter:xiaomi-watch-s4`): Verifies honest `UNSUPPORTED` capability report (`0xFDAB`, `0x1101`, `WearAuthV2`), payload sanitization/bounds, and blocked unauthorized transmission.
 - `ReminderSchedulePlannerTest`: Verifies 48-hour lookahead scheduling, lead-time offsets, past/far-future filtering, and 08:00 local anchoring for UTC all-day events.
 - `EventSyncViewModelTest`: Verifies honest `UNSUPPORTED` native status, bridge toggle, lead-time selection, and test watch alert feedback.
@@ -35,6 +39,7 @@ python -m unittest discover -s protocol-lab/packet-parser -p "test_*.py" -v
 
 ## Commands
 ```powershell
-.\gradlew.bat :app:testDebugUnitTest
-.\gradlew.bat :app:assembleDebug
+.\gradlew.bat :protocol-adapter:xiaomi-watch-s4:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+.\gradlew.bat :app:connectedDebugAndroidTest
+python -m unittest discover -s protocol-lab/packet-parser -p "test_*.py" -v
 ```

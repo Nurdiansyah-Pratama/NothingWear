@@ -2,7 +2,7 @@
 
 Independent, offline-first Android companion application and research workspace for **Xiaomi Watch S4**, focused on personal calendar management, BLE device diagnostics, Watch Face Studio, and ethical protocol research for enabling native Watch S4 Events synchronization on non-Xiaomi devices (primary target: **Infinix XOS 15**).
 
-> **Current Status:** `M6 — Health & Device Dashboard` complete (verified wearable telemetry & GATT capability matrix, live standard Bluetooth SIG Heart Rate `0x180D / 0x2A37` monitor, read-only Android Health Connect `1.1.0` integration for Steps/HR/Sleep with source attribution, separated host phone telemetry, and honest `UNAVAILABLE` states). Final milestone `M7 — Integration & Release` awaits approval.
+> **Current Status:** `v1.0.0 (M7 — Integration & Release)` complete — all milestones M0–M7 delivered, unit-tested, Room-migration-tested, release-built (`:app:assembleRelease`), and physically verified on **Infinix X6880 (XOS 15, Android 15)** + **Xiaomi Watch S4**. See [docs/RELEASE-NOTES-1.0.0.md](docs/RELEASE-NOTES-1.0.0.md).
 
 ## Tech Stack (Verified Baseline)
 
@@ -67,5 +67,6 @@ NothingWear/
 - [docs/EVENT-SYNC.md](docs/EVENT-SYNC.md) — Native Events sync adapter spec (M4)
 - [docs/WATCHFACE-SPEC.md](docs/WATCHFACE-SPEC.md) — Watch Face Studio & 466×466 target spec (M5)
 - [docs/HEALTH-DASHBOARD.md](docs/HEALTH-DASHBOARD.md) — Verified Health & Device Dashboard spec (M6)
+- [docs/RELEASE-NOTES-1.0.0.md](docs/RELEASE-NOTES-1.0.0.md) — v1.0.0 release notes, hardware verification & limitations (M7)
 - [docs/TESTING.md](docs/TESTING.md) — Unit, instrumented & physical device test plan
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — Milestone changelog

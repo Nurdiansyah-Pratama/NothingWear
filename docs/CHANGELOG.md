@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.0] — M7 Integration & Release (2026-11-21)
+
+### Added
+- Added live **Infinix XOS 15 / Android Battery Optimization & Background Reliability** card in `SettingsScreen` (`PowerManager.isIgnoringBatteryOptimizations` live status on `ON_RESUME`, 1-tap Battery Optimization & App Info shortcuts, and documented limitations summary).
+- Added instrumented Room migration test (`RoomMigrationTest` using `androidx.room:room-testing` validating non-destructive `1 → 2` migration on real Android SQLite) and JVM schema snapshot verification test (`RoomSchemaIntegrityTest`).
+- Added release R8/ProGuard configuration (`app/proguard-rules.pro`) and verified `:app:assembleRelease` (`versionCode = 7`, `versionName = "1.0.0"`).
+- Clarified Watch Face Studio `Save` feedback message to distinguish saving a local Studio project inside NothingWear vs exporting a 466×466 PNG to Gallery.
+- Published `docs/RELEASE-NOTES-1.0.0.md` with full physical hardware verification matrix (Infinix X6880 + Xiaomi Watch S4), XOS 15 background checklist, and documented limitations.
+
 ## [0.6.0-m6] — M6 Health & Device Dashboard (2026-11-21)
 
 ### Added

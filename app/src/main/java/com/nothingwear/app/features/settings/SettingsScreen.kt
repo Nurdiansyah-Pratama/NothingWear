@@ -1,5 +1,10 @@
 package com.nothingwear.app.features.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,22 +23,33 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nothingwear.app.BuildConfig
 import com.nothingwear.app.core.designsystem.component.NothingSectionHeader
+import com.nothingwear.app.core.designsystem.component.NothingStatusBadge
 import com.nothingwear.app.core.designsystem.component.NothingSurfaceCard
 import com.nothingwear.app.core.designsystem.theme.NothingRadius
 import com.nothingwear.app.core.designsystem.theme.NothingSpacing
@@ -47,8 +63,40 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    fun checkIgnoringBatteryOptimizations(): Boolean {
+        val pm = context.getSystemService(PowerManager::class.java)
+        return pm?.isIgnoringBatteryOptimizations(context.packageName) == true
+    }
+
+    var isBatteryUnrestricted by remember { mutableStateOf(checkIgnoringBatteryOptimizations()) }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        isBatteryUnrestricted = checkIgnoringBatteryOptimizations()
+    }
+
     SettingsScreen(
         uiState = uiState,
+        isBatteryUnrestricted = isBatteryUnrestricted,
+        onOpenBatteryOptimizationSettings = {
+            val batteryIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            runCatching { context.startActivity(batteryIntent) }
+                .onFailure {
+                    val detailsIntent = Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", context.packageName, null),
+                    )
+                    context.startActivity(detailsIntent)
+                }
+        },
+        onOpenAppDetailsSettings = {
+            val detailsIntent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null),
+            )
+            context.startActivity(detailsIntent)
+        },
         onSelectThemeMode = viewModel::onSelectThemeMode,
         onSelectAccentColor = viewModel::onSelectAccentColor,
         modifier = modifier,
@@ -61,6 +109,9 @@ fun SettingsScreen(
     onSelectThemeMode: (ThemeMode) -> Unit,
     onSelectAccentColor: (AccentColorOption) -> Unit,
     modifier: Modifier = Modifier,
+    isBatteryUnrestricted: Boolean = false,
+    onOpenBatteryOptimizationSettings: () -> Unit = {},
+    onOpenAppDetailsSettings: () -> Unit = {},
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -138,6 +189,87 @@ fun SettingsScreen(
         }
 
         item {
+            NothingSectionHeader(
+                title = "Background & XOS 15 Battery Reliability",
+                trailingContent = {
+                    NothingStatusBadge(
+                        label = if (isBatteryUnrestricted) "UNRESTRICTED" else "OPTIMIZED",
+                        dotColor = if (isBatteryUnrestricted) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                },
+            )
+            Spacer(modifier = Modifier.height(NothingSpacing.xs))
+            NothingSurfaceCard {
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(NothingSpacing.sm),
+                ) {
+                    Icon(
+                        imageVector = if (isBatteryUnrestricted) {
+                            Icons.Outlined.VerifiedUser
+                        } else {
+                            Icons.Outlined.BatteryAlert
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isBatteryUnrestricted) {
+                                "Background Execution Unrestricted"
+                            } else {
+                                "Battery Optimization Active (${Build.MANUFACTURER} ${Build.MODEL})"
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(modifier = Modifier.height(NothingSpacing.xxs))
+                        Text(
+                            text = if (isBatteryUnrestricted) {
+                                "WorkManager Watch Reminder Bridge alerts can fire reliably without OS power throttling."
+                            } else {
+                                "On Infinix XOS 15 (Phone Master / Power Marathon), battery optimization can delay scheduled WorkManager calendar alerts to Xiaomi Watch S4. Set NothingWear and Mi Fitness to Unrestricted."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(NothingSpacing.sm))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+                ) {
+                    OutlinedButton(
+                        onClick = onOpenBatteryOptimizationSettings,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(NothingRadius.sm),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text("Battery Settings")
+                    }
+                    OutlinedButton(
+                        onClick = onOpenAppDetailsSettings,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(NothingRadius.sm),
+                    ) {
+                        Text("App Info")
+                    }
+                }
+            }
+        }
+
+        item {
             NothingSectionHeader(title = "Application & Environment")
             Spacer(modifier = Modifier.height(NothingSpacing.xs))
             NothingSurfaceCard {
@@ -151,7 +283,12 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                MetadataRow(label = "Milestone", value = "M5 — Watch Face Studio")
+                MetadataRow(label = "Release Track", value = "M7 — Integration & Release")
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = NothingSpacing.sm),
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+                MetadataRow(label = "Database", value = "Room v2 (MIGRATION_1_2)")
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
@@ -161,20 +298,23 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                MetadataRow(label = "Permissions", value = "Calendar, BLE, Notifications")
+                MetadataRow(label = "Permissions", value = "Calendar, BLE, Alerts, Health")
             }
         }
 
         item {
             NothingSurfaceCard(containerColor = MaterialTheme.colorScheme.surfaceVariant) {
                 Text(
-                    text = "SECURITY & ENGINEERING CONSTRAINTS",
+                    text = "SECURITY & DOCUMENTED LIMITATIONS",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(modifier = Modifier.height(NothingSpacing.xs))
                 Text(
-                    text = "NothingWear operates independently without modifying Xiaomi firmware, bypassing authentication, or interfering with official Mi Fitness pairing.",
+                    text = "• Independent & Safe: NothingWear never modifies Xiaomi firmware, bypasses WearAuthV2 authentication, writes to 0xFDAB, or interferes with official Mi Fitness pairing.\n" +
+                        "• Native Watch S4 Events: OEM-whitelisted & WearAuthV2-encrypted in Mi Fitness; NothingWear provides a verified WorkManager Watch Reminder Bridge.\n" +
+                        "• Watch Faces: Exports 466×466 clean Background-Only PNGs aligned to Mi Fitness's 5 Kustom templates (not proprietary .bin/.face binaries).\n" +
+                        "• Health & Battery: Uses live BLE Heart Rate (0x180D/0x2A37) and read-only Health Connect; Watch S4 battery (0x180F) & DIS (0x180A) remain honestly UNAVAILABLE.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

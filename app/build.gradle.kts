@@ -20,10 +20,14 @@ android {
         applicationId = "com.nothingwear.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.6.0-m6"
+        versionCode = 7
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
     buildTypes {
@@ -32,6 +36,10 @@ android {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
     compileOptions {

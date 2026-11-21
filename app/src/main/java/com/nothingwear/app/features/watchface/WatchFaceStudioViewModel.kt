@@ -165,9 +165,9 @@ class WatchFaceStudioViewModel @Inject constructor(
                 it.copy(
                     draft = target.copy(id = savedId),
                     feedbackMessage = if (asNewCopy) {
-                        "Saved copy '${target.name}' to local studio library."
+                        "Saved copy '${target.name}' in NothingWear Studio (Export tab → Saved Projects). Tap 'Export Background Only' to save a 466×466 PNG to Gallery."
                     } else {
-                        "Saved '${target.name}' locally in Room."
+                        "Saved '${target.name}' inside NothingWear (Export tab → Saved Projects). Tap 'Export Background Only' to save a 466×466 PNG to Gallery."
                     },
                 )
             }
