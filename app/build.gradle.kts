@@ -20,8 +20,8 @@ android {
         applicationId = "com.nothingwear.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.5.0-m5"
+        versionCode = 6
+        versionName = "0.6.0-m6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.health.connect.client)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

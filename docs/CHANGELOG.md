@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0-m6] — M6 Health & Device Dashboard (2026-11-21)
+
+### Added
+- Added pure-Kotlin Bluetooth SIG Heart Rate Measurement (`0x2A37`) parser (`HeartRateMeasurementParser`) decoding 8-bit/16-bit BPM, sensor contact bits, energy expended, and RR intervals, plus unit tests (`HeartRateMeasurementParserTest`).
+- Extended `AndroidBleDiagnosticsRepository` with explicit user-triggered `startStandardHeartRateMonitor()` / `stopStandardHeartRateMonitor()` strictly whitelisted to standard `0x180D / 0x2A37` CCCD `0x2902` notifications (zero writes to `0xFDAB` or vendor characteristics; Mi Fitness pairing preserved).
+- Added Android Health Connect (`androidx.health.connect:connect-client:1.1.0`) read-only integration (`AndroidHealthRepository`) with on-demand `READ_STEPS`, `READ_HEART_RATE`, `READ_SLEEP` permissions and Android 13/14/15 `AndroidManifest.xml` rationale/usage handlers, surfacing verified origin package attribution and explicit `PERMISSION NEEDED` / `NO DATA` / `UNAVAILABLE` states.
+- Built `HealthDashboardScreen` (`health/dashboard` route reachable from Home Dashboard and Devices tab) showing Wearable Telemetry capabilities, Live BLE Heart Rate (`0x2A37`) with mini sparkline bars, Health Connect metric cards, separated Host Phone companion environment, and Data Provenance policy.
+- Integrated compact live verified `Health & Telemetry` overview card directly into Home `DashboardScreen`, replacing the M2 `TODO(M6)` placeholder in `DevicesScreen`.
+- Added `HealthDashboardViewModelTest` and updated `DashboardViewModelTest`.
+
 ## [0.5.0-m5] — M5 Watch Face Studio (2026-11-21)
 
 ### Added

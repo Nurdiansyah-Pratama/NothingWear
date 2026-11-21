@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
@@ -17,12 +18,15 @@ import android.content.pm.PackageManager
 import android.os.Build
 import com.nothingwear.app.core.bluetooth.GattStatusDecoder
 import com.nothingwear.app.core.bluetooth.GattUuidLookup
+import com.nothingwear.app.core.bluetooth.HeartRateMeasurementParser
 import com.nothingwear.app.core.bluetooth.LogRedactor
 import com.nothingwear.app.core.bluetooth.WatchS4Identifier
 import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.core.permissions.BluetoothPermissionChecker
 import com.nothingwear.app.domain.model.BleDeviceSummary
 import com.nothingwear.app.domain.model.BleDiagnosticsSnapshot
+import com.nothingwear.app.domain.model.BleHeartRateMonitorState
+import com.nothingwear.app.domain.model.BleHeartRateSample
 import com.nothingwear.app.domain.model.BluetoothAdapterStatus
 import com.nothingwear.app.domain.model.BluetoothTransportType
 import com.nothingwear.app.domain.model.DiagnosticLogEntry
@@ -49,6 +53,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.util.ArrayDeque
 import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -555,6 +560,10 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                                     } else {
                                         WatchConnectionState.FAILED
                                     },
+                                    heartRateState = it.gattSession.heartRateState.copy(
+                                        isListening = false,
+                                        statusNote = "GATT disconnected.",
+                                    ),
                                     lastStatusNote = note,
                                 ),
                             )
@@ -603,10 +612,15 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                     )
                 }
 
+                val hrExposed = discoveredServices
+                    .firstOrNull { it.uuid == UUID_HEART_RATE_SERVICE }
+                    ?.getCharacteristic(UUID_HEART_RATE_MEASUREMENT)
+                    ?.let { (it.properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0 } == true
+
                 val totalChars = mappedServices.sumOf { it.characteristics.size }
                 appendLog(
                     level = DiagnosticLogLevel.INFO,
-                    rawMessage = "Discovered ${mappedServices.size} GATT services / $totalChars characteristics on $displayName [$redacted] via $strategyLabel (read-only; 0 writes).",
+                    rawMessage = "Discovered ${mappedServices.size} GATT services / $totalChars characteristics on $displayName [$redacted] via $strategyLabel (read-only; 0 writes; standard HR 0x180D=$hrExposed).",
                 )
 
                 _diagnostics.update {
@@ -614,6 +628,15 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                         gattSession = it.gattSession.copy(
                             connectionState = WatchConnectionState.PROTOCOL_UNKNOWN,
                             services = mappedServices,
+                            heartRateState = BleHeartRateMonitorState(
+                                isServiceExposed = hrExposed,
+                                isListening = false,
+                                statusNote = if (hrExposed) {
+                                    "Standard BLE Heart Rate Service (0x180D / 0x2A37) detected. Tap Listen Live HR in Health Dashboard to subscribe."
+                                } else {
+                                    "Standard BLE Heart Rate Service (0x180D) is not exposed on this device."
+                                },
+                            ),
                             lastStatusNote = "Discovered ${mappedServices.size} services ($totalChars characteristics) via $strategyLabel (read-only; 0 writes). Watch S4 event sync protocol remains unverified (M3/M4).",
                         ),
                     )
@@ -659,6 +682,61 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
                         value = characteristic.value ?: ByteArray(0),
                         status = status,
                     )
+                }
+            }
+
+            override fun onCharacteristicChanged(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                value: ByteArray,
+            ) {
+                if (activeSessionId.get() != sessionId) return
+                handleStandardHeartRatePacket(characteristic, value)
+            }
+
+            @Deprecated("Used on Android versions below API 33")
+            @Suppress("DEPRECATION")
+            override fun onCharacteristicChanged(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+            ) {
+                if (activeSessionId.get() != sessionId) return
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    handleStandardHeartRatePacket(characteristic, characteristic.value ?: ByteArray(0))
+                }
+            }
+
+            override fun onDescriptorWrite(
+                gatt: BluetoothGatt,
+                descriptor: BluetoothGattDescriptor,
+                status: Int,
+            ) {
+                if (activeSessionId.get() != sessionId) return
+                if (descriptor.characteristic.uuid == UUID_HEART_RATE_MEASUREMENT) {
+                    val listening = _diagnostics.value.gattSession.heartRateState.isListening
+                    val msg = if (status == BluetoothGatt.GATT_SUCCESS) {
+                        if (listening) {
+                            "Subscribed to standard BLE Heart Rate (0x2A37). Waiting for watch broadcast (enable HR Broadcast on Watch S4 if needed)."
+                        } else {
+                            "Unsubscribed from standard BLE Heart Rate (0x2A37)."
+                        }
+                    } else {
+                        "Heart Rate CCCD update returned ${GattStatusDecoder.describeStatus(status)}."
+                    }
+                    appendLog(
+                        level = if (status == BluetoothGatt.GATT_SUCCESS) DiagnosticLogLevel.INFO else DiagnosticLogLevel.WARN,
+                        rawMessage = msg,
+                    )
+                    _diagnostics.update {
+                        it.copy(
+                            gattSession = it.gattSession.copy(
+                                heartRateState = it.gattSession.heartRateState.copy(
+                                    isListening = listening && status == BluetoothGatt.GATT_SUCCESS,
+                                    statusNote = msg,
+                                ),
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -835,6 +913,148 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
             level = DiagnosticLogLevel.INFO,
             rawMessage = "Read standard DIS $label: $decoded",
         )
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun startStandardHeartRateMonitor() {
+        val gatt = activeGatt
+        if (gatt == null || !permissionChecker.hasConnectPermission()) {
+            _diagnostics.update {
+                it.copy(
+                    gattSession = it.gattSession.copy(
+                        heartRateState = it.gattSession.heartRateState.copy(
+                            isListening = false,
+                            statusNote = "Connect to Watch S4 in Devices tab first to subscribe to standard BLE Heart Rate (0x180D).",
+                        ),
+                    ),
+                )
+            }
+            return
+        }
+
+        val hrChar = gatt.getService(UUID_HEART_RATE_SERVICE)?.getCharacteristic(UUID_HEART_RATE_MEASUREMENT)
+        if (hrChar == null) {
+            appendLog(
+                level = DiagnosticLogLevel.WARN,
+                rawMessage = "Standard Heart Rate characteristic (0x2A37) not found on active GATT session.",
+            )
+            _diagnostics.update {
+                it.copy(
+                    gattSession = it.gattSession.copy(
+                        heartRateState = it.gattSession.heartRateState.copy(
+                            isServiceExposed = false,
+                            isListening = false,
+                            statusNote = "Standard Heart Rate Service (0x180D / 0x2A37) is unavailable on this session.",
+                        ),
+                    ),
+                )
+            }
+            return
+        }
+
+        try {
+            gatt.setCharacteristicNotification(hrChar, true)
+            val cccd = hrChar.getDescriptor(UUID_CCCD)
+            val wroteDescriptor = if (cccd != null) {
+                writeStandardCccd(gatt, cccd, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+            } else {
+                true
+            }
+            val note = if (wroteDescriptor) {
+                "Listening to standard BLE Heart Rate (0x2A37)... Enable Heart Rate Broadcast on Xiaomi Watch S4 if no BPM appears."
+            } else {
+                "Could not enable Heart Rate CCCD (0x2902) on this GATT link."
+            }
+            appendLog(
+                level = if (wroteDescriptor) DiagnosticLogLevel.INFO else DiagnosticLogLevel.WARN,
+                rawMessage = note,
+            )
+            _diagnostics.update {
+                it.copy(
+                    gattSession = it.gattSession.copy(
+                        heartRateState = it.gattSession.heartRateState.copy(
+                            isServiceExposed = true,
+                            isListening = wroteDescriptor,
+                            statusNote = note,
+                        ),
+                    ),
+                )
+            }
+        } catch (se: SecurityException) {
+            appendLog(
+                level = DiagnosticLogLevel.ERROR,
+                rawMessage = "SecurityException subscribing to standard Heart Rate (0x2A37): ${se.message}",
+            )
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    override fun stopStandardHeartRateMonitor() {
+        val gatt = activeGatt
+        if (gatt != null && permissionChecker.hasConnectPermission()) {
+            val hrChar = gatt.getService(UUID_HEART_RATE_SERVICE)?.getCharacteristic(UUID_HEART_RATE_MEASUREMENT)
+            if (hrChar != null) {
+                runCatching {
+                    gatt.setCharacteristicNotification(hrChar, false)
+                    val cccd = hrChar.getDescriptor(UUID_CCCD)
+                    if (cccd != null) {
+                        writeStandardCccd(gatt, cccd, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
+                    }
+                }
+            }
+        }
+        _diagnostics.update {
+            it.copy(
+                gattSession = it.gattSession.copy(
+                    heartRateState = it.gattSession.heartRateState.copy(
+                        isListening = false,
+                        statusNote = "Stopped live standard BLE Heart Rate monitoring.",
+                    ),
+                ),
+            )
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun writeStandardCccd(
+        gatt: BluetoothGatt,
+        cccd: BluetoothGattDescriptor,
+        value: ByteArray,
+    ): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        gatt.writeDescriptor(cccd, value) == android.bluetooth.BluetoothStatusCodes.SUCCESS
+    } else {
+        @Suppress("DEPRECATION")
+        cccd.value = value
+        @Suppress("DEPRECATION")
+        gatt.writeDescriptor(cccd)
+    }
+
+    private fun handleStandardHeartRatePacket(
+        characteristic: BluetoothGattCharacteristic,
+        value: ByteArray,
+    ) {
+        if (characteristic.uuid != UUID_HEART_RATE_MEASUREMENT) return
+        val parsed = HeartRateMeasurementParser.parse(value) ?: return
+        val sample = BleHeartRateSample(
+            bpm = parsed.bpm,
+            timestampMillis = timeProvider.nowMillis(),
+            sensorContact = parsed.sensorContact,
+        )
+        _diagnostics.update { state ->
+            val currentHr = state.gattSession.heartRateState
+            val updatedHistory = (currentHr.recentSamples + sample).takeLast(MAX_HR_SAMPLES)
+            state.copy(
+                gattSession = state.gattSession.copy(
+                    heartRateState = currentHr.copy(
+                        isServiceExposed = true,
+                        isListening = true,
+                        latestSample = sample,
+                        recentSamples = updatedHistory,
+                        statusNote = "Live verified BLE HR (0x2A37): ${sample.bpm} BPM · ${sample.sensorContact.label}",
+                    ),
+                ),
+            )
+        }
     }
 
     override fun disconnectGatt() {
@@ -1071,10 +1291,14 @@ class AndroidBleDiagnosticsRepository @Inject constructor(
     )
 
     private companion object {
+        val UUID_HEART_RATE_SERVICE: UUID = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
+        val UUID_HEART_RATE_MEASUREMENT: UUID = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
+        val UUID_CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         const val SCAN_TIMEOUT_MS = 15_000L
         const val RECONNECT_COOLDOWN_MS = 450L
         const val DIRECT_CONNECT_TIMEOUT_MS = 6_000L
         const val AUTO_ATTACH_TIMEOUT_MS = 8_000L
         const val MAX_LOG_ENTRIES = 120
+        const val MAX_HR_SAMPLES = 24
     }
 }

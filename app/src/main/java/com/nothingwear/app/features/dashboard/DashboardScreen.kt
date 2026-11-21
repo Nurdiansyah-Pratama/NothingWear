@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.EventNote
 import androidx.compose.material.icons.outlined.BluetoothDisabled
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Troubleshoot
 import androidx.compose.material.icons.outlined.Watch
@@ -46,6 +47,7 @@ import com.nothingwear.app.core.designsystem.theme.NothingWearTheme
 import com.nothingwear.app.domain.model.AgendaItem
 import com.nothingwear.app.domain.model.CalendarOverview
 import com.nothingwear.app.domain.model.CalendarSyncState
+import com.nothingwear.app.domain.model.DashboardHealthOverview
 import com.nothingwear.app.domain.model.DashboardOverview
 import com.nothingwear.app.domain.model.DeviceStatusSummary
 import com.nothingwear.app.domain.model.WatchConnectionState
@@ -55,6 +57,7 @@ fun DashboardRoute(
     onOpenCalendar: () -> Unit,
     onOpenWatchSync: () -> Unit,
     onOpenEventDetail: (String) -> Unit,
+    onOpenHealthDashboard: () -> Unit,
     onOpenWatchFaceStudio: () -> Unit,
     onOpenDeviceDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
@@ -66,6 +69,7 @@ fun DashboardRoute(
         onOpenCalendar = onOpenCalendar,
         onOpenWatchSync = onOpenWatchSync,
         onOpenEventDetail = onOpenEventDetail,
+        onOpenHealthDashboard = onOpenHealthDashboard,
         onOpenWatchFaceStudio = onOpenWatchFaceStudio,
         onOpenDeviceDiagnostics = onOpenDeviceDiagnostics,
         modifier = modifier,
@@ -78,6 +82,7 @@ fun DashboardScreen(
     onOpenCalendar: () -> Unit,
     onOpenWatchSync: () -> Unit,
     onOpenEventDetail: (String) -> Unit,
+    onOpenHealthDashboard: () -> Unit,
     onOpenWatchFaceStudio: () -> Unit,
     onOpenDeviceDiagnostics: () -> Unit,
     modifier: Modifier = Modifier,
@@ -117,6 +122,13 @@ fun DashboardScreen(
                     DeviceStatusCard(
                         deviceStatus = overview.deviceStatus,
                         onOpenDeviceDiagnostics = onOpenDeviceDiagnostics,
+                    )
+                }
+
+                item {
+                    HealthTelemetryOverviewCard(
+                        healthOverview = overview.healthOverview,
+                        onOpenHealthDashboard = onOpenHealthDashboard,
                     )
                 }
 
@@ -240,6 +252,14 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(NothingSpacing.sm),
                     ) {
                         ShortcutTile(
+                            icon = Icons.Outlined.MonitorHeart,
+                            badge = "M6",
+                            title = "Health & Device",
+                            subtitle = "BLE HR · Health Connect",
+                            onClick = onOpenHealthDashboard,
+                            modifier = Modifier.weight(1f),
+                        )
+                        ShortcutTile(
                             icon = Icons.Outlined.Palette,
                             badge = "M5",
                             title = "Watch Face Studio",
@@ -247,15 +267,16 @@ fun DashboardScreen(
                             onClick = onOpenWatchFaceStudio,
                             modifier = Modifier.weight(1f),
                         )
-                        ShortcutTile(
-                            icon = Icons.Outlined.Troubleshoot,
-                            badge = "M2",
-                            title = "Device Diagnostics",
-                            subtitle = "BLE & GATT inspector",
-                            onClick = onOpenDeviceDiagnostics,
-                            modifier = Modifier.weight(1f),
-                        )
                     }
+                    Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                    ShortcutTile(
+                        icon = Icons.Outlined.Troubleshoot,
+                        badge = "M2",
+                        title = "Device Diagnostics",
+                        subtitle = "Read-only BLE scanner, GATT inspector & redacted logs",
+                        onClick = onOpenDeviceDiagnostics,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
@@ -374,6 +395,118 @@ private fun DeviceStatusCard(
                 modifier = Modifier.size(16.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun HealthTelemetryOverviewCard(
+    healthOverview: DashboardHealthOverview,
+    onOpenHealthDashboard: () -> Unit,
+) {
+    NothingSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onOpenHealthDashboard,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MonitorHeart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = "HEALTH & TELEMETRY",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            NothingStatusBadge(
+                label = healthOverview.statusBadge,
+                dotColor = if (healthOverview.hasVerifiedData) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+
+        Spacer(modifier = Modifier.height(NothingSpacing.sm))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NothingSpacing.sm),
+        ) {
+            HealthMiniStatColumn(
+                label = "STEPS",
+                value = healthOverview.stepsValue,
+                modifier = Modifier.weight(1f),
+            )
+            HealthMiniStatColumn(
+                label = "HEART RATE",
+                value = healthOverview.heartRateValue,
+                modifier = Modifier.weight(1f),
+            )
+            HealthMiniStatColumn(
+                label = "SLEEP",
+                value = healthOverview.sleepValue,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(NothingSpacing.sm))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = healthOverview.detailNote,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(modifier = Modifier.size(NothingSpacing.xs))
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                contentDescription = "Open Health & Device Dashboard",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HealthMiniStatColumn(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -607,12 +740,13 @@ private fun DashboardScreenPreview() {
                         todayEvents = emptyList(),
                         upcomingEvents = emptyList(),
                     ),
-                    currentMilestone = "M4 · Sync & Bridge",
+                    currentMilestone = "M6 · Health & Device",
                 ),
             ),
             onOpenCalendar = {},
             onOpenWatchSync = {},
             onOpenEventDetail = {},
+            onOpenHealthDashboard = {},
             onOpenWatchFaceStudio = {},
             onOpenDeviceDiagnostics = {},
         )

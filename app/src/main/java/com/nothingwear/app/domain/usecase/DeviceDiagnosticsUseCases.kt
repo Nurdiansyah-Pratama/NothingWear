@@ -35,6 +35,18 @@ class InspectDeviceGattUseCase @Inject constructor(
     operator fun invoke(addressKey: String) = repository.inspectDeviceGatt(addressKey)
 }
 
+class StartStandardHeartRateMonitorUseCase @Inject constructor(
+    private val repository: DeviceDiagnosticsRepository,
+) {
+    operator fun invoke() = repository.startStandardHeartRateMonitor()
+}
+
+class StopStandardHeartRateMonitorUseCase @Inject constructor(
+    private val repository: DeviceDiagnosticsRepository,
+) {
+    operator fun invoke() = repository.stopStandardHeartRateMonitor()
+}
+
 class DisconnectGattUseCase @Inject constructor(
     private val repository: DeviceDiagnosticsRepository,
 ) {

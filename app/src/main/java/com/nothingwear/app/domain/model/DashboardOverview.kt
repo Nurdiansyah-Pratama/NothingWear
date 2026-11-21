@@ -1,7 +1,17 @@
 package com.nothingwear.app.domain.model
 
+data class DashboardHealthOverview(
+    val stepsValue: String = "--",
+    val heartRateValue: String = "--",
+    val sleepValue: String = "--",
+    val statusBadge: String = "UNAVAILABLE",
+    val detailNote: String = "Open Health & Device Dashboard to inspect verified BLE HR (0x2A37) or Health Connect metrics.",
+    val hasVerifiedData: Boolean = false,
+)
+
 data class DashboardOverview(
     val deviceStatus: DeviceStatusSummary,
+    val healthOverview: DashboardHealthOverview = DashboardHealthOverview(),
     val calendarOverview: CalendarOverview,
     val currentMilestone: String,
 )

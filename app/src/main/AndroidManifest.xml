@@ -7,10 +7,15 @@
         M2 (Device & BLE Discovery): Android-version-aware BLE scan & connect permissions.
         M4 (Watch Reminder Bridge): POST_NOTIFICATIONS requested on-demand only when the user
         enables or tests local calendar reminder notifications for Mi Fitness forwarding.
+        M6 (Health & Device Dashboard): Read-only Android Health Connect permissions requested
+        on-demand when the user opts into reading verified Steps, Heart Rate, and Sleep data.
         BLUETOOTH_ADVERTISE is intentionally NOT requested.
     -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
 
     <!-- Android 12+ (API 31+) BLE permissions without location derivation -->
     <uses-permission
@@ -34,6 +39,11 @@
         android:name="android.hardware.bluetooth_le"
         android:required="false" />
 
+    <!-- Package visibility for Android Health Connect (M6) -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
     <application
         android:name=".NothingWearApplication"
         android:allowBackup="true"
@@ -55,7 +65,25 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Health Connect rationale handler for Android 13 and lower -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+
+        <!-- Health Connect permission usage handler for Android 14/15+ -->
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
     </application>
 
 </manifest>

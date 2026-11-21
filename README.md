@@ -2,7 +2,7 @@
 
 Independent, offline-first Android companion application and research workspace for **Xiaomi Watch S4**, focused on personal calendar management, BLE device diagnostics, Watch Face Studio, and ethical protocol research for enabling native Watch S4 Events synchronization on non-Xiaomi devices (primary target: **Infinix XOS 15**).
 
-> **Current Status:** `M5 — Watch Face Studio` complete (interactive 466×466 px circular editor, 6 customizable categories, color/typography/layout/widget slots, Room v2 local project library with non-destructive v1→v2 migration, 466×466 PNG + JSON spec export, and honest Watch S4 binary format documentation). Health & Device Dashboard (`M6`) and Integration/Release (`M7`) await approval.
+> **Current Status:** `M6 — Health & Device Dashboard` complete (verified wearable telemetry & GATT capability matrix, live standard Bluetooth SIG Heart Rate `0x180D / 0x2A37` monitor, read-only Android Health Connect `1.1.0` integration for Steps/HR/Sleep with source attribution, separated host phone telemetry, and honest `UNAVAILABLE` states). Final milestone `M7 — Integration & Release` awaits approval.
 
 ## Tech Stack (Verified Baseline)
 
@@ -12,6 +12,7 @@ Independent, offline-first Android companion application and research workspace 
 - **Architecture:** MVVM + Clean Architecture (`:app` + isolated `:protocol-adapter:xiaomi-watch-s4`)
 - **Database:** Room (`2.8.5`) via KSP with exported schemas (`app/schemas/`)
 - **Background Scheduling:** WorkManager (`2.12.0`) for Watch Reminder Bridge alerts
+- **Health Integration:** Android Health Connect (`1.1.0`, strictly read-only) + standard Bluetooth SIG BLE Heart Rate (`0x180D / 0x2A37`)
 - **DI:** Hilt (`2.60.1`) via KSP (`2.3.14`)
 - **Navigation:** Navigation Compose (`2.10.2`) + Hilt Navigation Compose (`1.4.0`)
 - **Preferences:** Jetpack DataStore Preferences (`1.3.0`)
@@ -65,5 +66,6 @@ NothingWear/
 - [docs/BLE-PROTOCOL.md](docs/BLE-PROTOCOL.md) — BLE discovery & protocol research notes (M2/M3)
 - [docs/EVENT-SYNC.md](docs/EVENT-SYNC.md) — Native Events sync adapter spec (M4)
 - [docs/WATCHFACE-SPEC.md](docs/WATCHFACE-SPEC.md) — Watch Face Studio & 466×466 target spec (M5)
+- [docs/HEALTH-DASHBOARD.md](docs/HEALTH-DASHBOARD.md) — Verified Health & Device Dashboard spec (M6)
 - [docs/TESTING.md](docs/TESTING.md) — Unit, instrumented & physical device test plan
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) — Milestone changelog

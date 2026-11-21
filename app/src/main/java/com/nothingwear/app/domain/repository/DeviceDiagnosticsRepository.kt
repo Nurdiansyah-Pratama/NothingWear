@@ -14,6 +14,10 @@ interface DeviceDiagnosticsRepository {
 
     fun inspectDeviceGatt(addressKey: String)
 
+    fun startStandardHeartRateMonitor() = Unit
+
+    fun stopStandardHeartRateMonitor() = Unit
+
     fun disconnectGatt()
 
     fun clearLogs()

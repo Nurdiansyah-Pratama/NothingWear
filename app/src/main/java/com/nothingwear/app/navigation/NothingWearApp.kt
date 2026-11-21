@@ -30,12 +30,14 @@ import com.nothingwear.app.features.calendar.CalendarRoute
 import com.nothingwear.app.features.calendar.EventDetailRoute
 import com.nothingwear.app.features.dashboard.DashboardRoute
 import com.nothingwear.app.features.device.DevicesRoute
+import com.nothingwear.app.features.health.HealthDashboardRoute
 import com.nothingwear.app.features.notifications.EventSyncRoute
 import com.nothingwear.app.features.settings.SettingsRoute
 import com.nothingwear.app.features.watchface.WatchFaceStudioRoute
 
 private const val EVENT_DETAIL_ROUTE_PATTERN = "calendar/event/{instanceKey}"
 private const val WATCH_SYNC_ROUTE = "calendar/watch-sync"
+private const val HEALTH_DASHBOARD_ROUTE = "health/dashboard"
 
 @Composable
 fun NothingWearApp(
@@ -64,6 +66,10 @@ fun NothingWearApp(
 
     fun openWatchSync() {
         navController.navigate(WATCH_SYNC_ROUTE)
+    }
+
+    fun openHealthDashboard() {
+        navController.navigate(HEALTH_DASHBOARD_ROUTE)
     }
 
     Scaffold(
@@ -132,8 +138,18 @@ fun NothingWearApp(
                     onOpenCalendar = { navigateTopLevel(NothingWearDestination.CALENDAR) },
                     onOpenWatchSync = ::openWatchSync,
                     onOpenEventDetail = ::openEventDetail,
+                    onOpenHealthDashboard = ::openHealthDashboard,
                     onOpenWatchFaceStudio = { navigateTopLevel(NothingWearDestination.WATCH_FACE_STUDIO) },
                     onOpenDeviceDiagnostics = { navigateTopLevel(NothingWearDestination.DEVICES) },
+                )
+            }
+            composable(HEALTH_DASHBOARD_ROUTE) {
+                HealthDashboardRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenDevices = {
+                        navController.popBackStack()
+                        navigateTopLevel(NothingWearDestination.DEVICES)
+                    },
                 )
             }
             composable(NothingWearDestination.CALENDAR.route) {
@@ -161,7 +177,9 @@ fun NothingWearApp(
                 WatchFaceStudioRoute()
             }
             composable(NothingWearDestination.DEVICES.route) {
-                DevicesRoute()
+                DevicesRoute(
+                    onOpenHealthDashboard = ::openHealthDashboard,
+                )
             }
             composable(NothingWearDestination.SETTINGS.route) {
                 SettingsRoute()

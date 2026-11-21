@@ -1,5 +1,6 @@
 package com.nothingwear.app.domain.model
 
+import com.nothingwear.app.core.bluetooth.HeartRateSensorContact
 import com.nothingwear.app.core.bluetooth.WatchMatchConfidence
 
 enum class BluetoothAdapterStatus {
@@ -65,6 +66,20 @@ data class StandardDeviceInfo(
     val batteryPercent: Int? = null,
 )
 
+data class BleHeartRateSample(
+    val bpm: Int,
+    val timestampMillis: Long,
+    val sensorContact: HeartRateSensorContact = HeartRateSensorContact.NOT_SUPPORTED,
+)
+
+data class BleHeartRateMonitorState(
+    val isServiceExposed: Boolean = false,
+    val isListening: Boolean = false,
+    val latestSample: BleHeartRateSample? = null,
+    val recentSamples: List<BleHeartRateSample> = emptyList(),
+    val statusNote: String? = null,
+)
+
 data class GattInspectionSession(
     val deviceAddressKey: String? = null,
     val deviceName: String? = null,
@@ -73,6 +88,7 @@ data class GattInspectionSession(
     val services: List<GattServiceInfo> = emptyList(),
     val sdpUuids: List<String> = emptyList(),
     val standardDeviceInfo: StandardDeviceInfo = StandardDeviceInfo(),
+    val heartRateState: BleHeartRateMonitorState = BleHeartRateMonitorState(),
     val lastStatusNote: String? = null,
 )
 

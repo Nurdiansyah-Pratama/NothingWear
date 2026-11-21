@@ -10,6 +10,7 @@ import com.nothingwear.app.data.calendar.AndroidCalendarDataSource
 import com.nothingwear.app.data.calendar.DeviceCalendarDataSource
 import com.nothingwear.app.data.device.AndroidBleDiagnosticsRepository
 import com.nothingwear.app.data.event.WatchEventSyncRepository
+import com.nothingwear.app.data.health.AndroidHealthRepository
 import com.nothingwear.app.data.preferences.DataStoreThemePreferencesRepository
 import com.nothingwear.app.data.repository.FoundationDashboardRepository
 import com.nothingwear.app.data.repository.OfflineFirstCalendarRepository
@@ -18,6 +19,7 @@ import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DashboardRepository
 import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.repository.EventSyncRepository
+import com.nothingwear.app.domain.repository.HealthRepository
 import com.nothingwear.app.domain.repository.ThemePreferencesRepository
 import com.nothingwear.app.domain.repository.WatchFaceRepository
 import com.nothingwear.protocol.watchs4.WatchS4ProtocolAdapter
@@ -75,6 +77,12 @@ abstract class DataBindingsModule {
     abstract fun bindWatchFaceRepository(
         impl: RoomWatchFaceRepository,
     ): WatchFaceRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHealthRepository(
+        impl: AndroidHealthRepository,
+    ): HealthRepository
 }
 
 @Module

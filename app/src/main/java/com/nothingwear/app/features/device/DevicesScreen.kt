@@ -59,7 +59,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nothingwear.app.core.bluetooth.GattUuidLookup
 import com.nothingwear.app.core.bluetooth.WatchMatchConfidence
-import com.nothingwear.app.core.designsystem.component.MilestonePlaceholderCard
 import com.nothingwear.app.core.designsystem.component.NothingSectionHeader
 import com.nothingwear.app.core.designsystem.component.NothingStatusBadge
 import com.nothingwear.app.core.designsystem.component.NothingSurfaceCard
@@ -75,6 +74,7 @@ import com.nothingwear.app.domain.model.WatchConnectionState
 
 @Composable
 fun DevicesRoute(
+    onOpenHealthDashboard: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: DevicesViewModel = hiltViewModel(),
 ) {
@@ -128,6 +128,7 @@ fun DevicesRoute(
             clipboard?.setPrimaryClip(ClipData.newPlainText("NothingWear BLE Diagnostics", report))
         },
         onClearLogs = viewModel::onClearLogs,
+        onOpenHealthDashboard = onOpenHealthDashboard,
         modifier = modifier,
     )
 }
@@ -146,6 +147,7 @@ fun DevicesScreen(
     onToggleServiceExpanded: (String) -> Unit,
     onCopyRedactedReport: () -> Unit,
     onClearLogs: () -> Unit,
+    onOpenHealthDashboard: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -329,18 +331,43 @@ fun DevicesScreen(
         }
 
         item {
-            // TODO(M6): Surface only verified health data sources; never fabricate metrics.
-            MilestonePlaceholderCard(
-                milestoneTag = "M6 · Verified Data Only",
-                title = "Health Metrics Unavailable",
-                description = "NothingWear never fabricates steps, heart rate, sleep, or unsupported battery numbers. Standard Battery Level (0x2A19) appears above only if exposed by the inspected device.",
-                plannedItems = listOf(
-                    "Steps / Heart Rate / Sleep: Unavailable in M2",
-                    "Watch S4 Native Events Protocol: PROTOCOL_UNKNOWN (M3/M4)",
-                ),
-                safetyNote = "SAFETY: Strict read-only BLE diagnostics. Zero GATT writes, zero firmware modifications, official Mi Fitness pairing untouched.",
-                icon = Icons.Outlined.FavoriteBorder,
-            )
+            NothingSurfaceCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onOpenHealthDashboard,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.FavoriteBorder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = "HEALTH & DEVICE DASHBOARD",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    NothingStatusBadge(
+                        label = "M6 READY",
+                        dotColor = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                Text(
+                    text = "Open the verified Health & Device Dashboard to stream standard BLE Heart Rate (0x180D / 0x2A37), read Health Connect Steps/HR/Sleep, and view host companion telemetry with zero fabricated data.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

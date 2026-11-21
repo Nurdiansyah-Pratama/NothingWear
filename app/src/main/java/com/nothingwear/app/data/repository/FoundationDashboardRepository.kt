@@ -9,13 +9,17 @@ import com.nothingwear.app.domain.model.BluetoothAdapterStatus
 import com.nothingwear.app.domain.model.CalendarEvent
 import com.nothingwear.app.domain.model.CalendarOverview
 import com.nothingwear.app.domain.model.CalendarSyncState
+import com.nothingwear.app.domain.model.DashboardHealthOverview
 import com.nothingwear.app.domain.model.DashboardOverview
 import com.nothingwear.app.domain.model.DeviceStatusSummary
+import com.nothingwear.app.domain.model.HealthConnectAvailability
+import com.nothingwear.app.domain.model.MetricAvailabilityStatus
 import com.nothingwear.app.domain.model.WatchConnectionState
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DashboardRepository
 import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.repository.EventSyncRepository
+import com.nothingwear.app.domain.repository.HealthRepository
 import com.nothingwear.app.domain.util.AgendaTimeWindows
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -24,16 +28,18 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * M4 implementation of [DashboardRepository].
+ * M6 implementation of [DashboardRepository].
  *
- * Combines live Room-backed local calendar data, live read-only BLE diagnostic state,
- * and isolated Watch S4 protocol-adapter / Reminder Bridge status honestly.
+ * Combines live Room-backed local calendar data, live read-only BLE diagnostic state
+ * (including standard BLE Heart Rate 0x2A37 when streaming), verified Android Health Connect
+ * metrics, and isolated Watch S4 protocol-adapter / Reminder Bridge status honestly.
  */
 @Singleton
 class FoundationDashboardRepository @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val deviceDiagnosticsRepository: DeviceDiagnosticsRepository,
     private val eventSyncRepository: EventSyncRepository,
+    private val healthRepository: HealthRepository,
     private val permissionChecker: CalendarPermissionChecker,
     private val timeProvider: TimeProvider,
 ) : DashboardRepository {
@@ -43,7 +49,8 @@ class FoundationDashboardRepository @Inject constructor(
         calendarRepository.observeSyncMetadata(),
         deviceDiagnosticsRepository.observeDiagnostics(),
         eventSyncRepository.observeEventSyncOverview(),
-    ) { selectedEvents, metadata, bleSnapshot, syncOverview ->
+        healthRepository.observeHealthSnapshot(),
+    ) { selectedEvents, metadata, bleSnapshot, syncOverview, healthSnapshot ->
         val nowMillis = timeProvider.nowMillis()
         val zoneId = timeProvider.zoneId()
         val today = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
@@ -139,8 +146,61 @@ class FoundationDashboardRepository @Inject constructor(
             "Native Events app: UNSUPPORTED (WearAuthV2). Tap to enable the Watch Reminder Bridge fallback."
         }
 
+        val liveBleHr = session.heartRateState.latestSample
+        val effectiveHrValue = when {
+            liveBleHr != null -> "${liveBleHr.bpm} BPM"
+            healthSnapshot.heartRateSummary.status == MetricAvailabilityStatus.VERIFIED ->
+                "${healthSnapshot.heartRateSummary.primaryValue} BPM"
+            else -> "--"
+        }
+        val effectiveStepsValue = if (healthSnapshot.stepsToday.status == MetricAvailabilityStatus.VERIFIED) {
+            healthSnapshot.stepsToday.primaryValue
+        } else {
+            "--"
+        }
+        val effectiveSleepValue = if (healthSnapshot.sleepLast24h.status == MetricAvailabilityStatus.VERIFIED) {
+            healthSnapshot.sleepLast24h.primaryValue
+        } else {
+            "--"
+        }
+        val hasVerifiedHealth = liveBleHr != null ||
+            healthSnapshot.stepsToday.status == MetricAvailabilityStatus.VERIFIED ||
+            healthSnapshot.heartRateSummary.status == MetricAvailabilityStatus.VERIFIED ||
+            healthSnapshot.sleepLast24h.status == MetricAvailabilityStatus.VERIFIED
+
+        val healthBadge = when {
+            liveBleHr != null -> "LIVE BLE HR"
+            hasVerifiedHealth -> "VERIFIED"
+            healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE &&
+                !healthSnapshot.hasHealthPermissions -> "GRANT ACCESS"
+            healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE -> "NO DATA"
+            else -> "UNAVAILABLE"
+        }
+        val healthDetail = when {
+            liveBleHr != null -> "Live verified BLE Heart Rate (0x2A37): ${liveBleHr.bpm} BPM. Tap for full Health & Device telemetry."
+            hasVerifiedHealth -> {
+                val origins = healthSnapshot.dataOrigins.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "Health Connect"
+                "Verified via Health Connect ($origins). Watch battery remains UNAVAILABLE unless exposed via 0x2A19."
+            }
+            healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE &&
+                !healthSnapshot.hasHealthPermissions ->
+                "Tap to authorize read-only Health Connect (Steps, HR, Sleep) or stream live standard BLE HR (0x2A37)."
+            healthSnapshot.healthConnectAvailability == HealthConnectAvailability.AVAILABLE ->
+                "Health Connect authorized, no synced records yet. Enable Health Connect sync in Mi Fitness → Profile → Third-party data."
+            else ->
+                "Health Connect unavailable on this OS. Tap to inspect verified BLE telemetry and live 0x2A37 Heart Rate."
+        }
+
         DashboardOverview(
             deviceStatus = deviceStatus,
+            healthOverview = DashboardHealthOverview(
+                stepsValue = effectiveStepsValue,
+                heartRateValue = effectiveHrValue,
+                sleepValue = effectiveSleepValue,
+                statusBadge = healthBadge,
+                detailNote = healthDetail,
+                hasVerifiedData = hasVerifiedHealth,
+            ),
             calendarOverview = CalendarOverview(
                 localCalendarState = localState,
                 localStatusMessage = localMessage,
@@ -149,7 +209,7 @@ class FoundationDashboardRepository @Inject constructor(
                 todayEvents = todayEvents,
                 upcomingEvents = upcomingEvents,
             ),
-            currentMilestone = "M5 · Studio",
+            currentMilestone = "M6 · Health & Device",
         )
     }
 

@@ -13,6 +13,10 @@ import com.nothingwear.app.domain.model.CalendarSyncResult
 import com.nothingwear.app.domain.model.CalendarSyncState
 import com.nothingwear.app.domain.model.EventSyncOverview
 import com.nothingwear.app.domain.model.GattInspectionSession
+import com.nothingwear.app.domain.model.HealthConnectAvailability
+import com.nothingwear.app.domain.model.HealthDashboardSnapshot
+import com.nothingwear.app.domain.model.HealthMetricSummary
+import com.nothingwear.app.domain.model.MetricAvailabilityStatus
 import com.nothingwear.app.domain.model.ReminderBridgeSettings
 import com.nothingwear.app.domain.model.ReminderLeadTime
 import com.nothingwear.app.domain.model.StandardDeviceInfo
@@ -20,7 +24,9 @@ import com.nothingwear.app.domain.model.WatchConnectionState
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.repository.EventSyncRepository
+import com.nothingwear.app.domain.repository.HealthRepository
 import com.nothingwear.app.domain.usecase.ObserveDashboardOverviewUseCase
+import com.nothingwear.app.domain.usecase.RefreshHealthDataUseCase
 import com.nothingwear.protocol.watchs4.XiaomiWatchS4ProtocolAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -63,16 +69,21 @@ class DashboardViewModelTest {
 
     @Test
     fun dashboardPromptsForPermissionWhenUncachedAndKeepsWatchStatesHonest() = runTest {
+        val healthRepo = StubHealthRepository()
         val repository = FoundationDashboardRepository(
             calendarRepository = StubCalendarRepository(emptyList(), CalendarSyncMetadata()),
             deviceDiagnosticsRepository = StubDeviceDiagnosticsRepository(
                 BleDiagnosticsSnapshot(adapterStatus = BluetoothAdapterStatus.ENABLED),
             ),
             eventSyncRepository = StubEventSyncRepository(),
+            healthRepository = healthRepo,
             permissionChecker = CalendarPermissionChecker { false },
             timeProvider = fixedTime,
         )
-        val viewModel = DashboardViewModel(ObserveDashboardOverviewUseCase(repository))
+        val viewModel = DashboardViewModel(
+            observeDashboardOverview = ObserveDashboardOverviewUseCase(repository),
+            refreshHealthData = RefreshHealthDataUseCase(healthRepo),
+        )
 
         val readyState = viewModel.uiState.first { it is DashboardUiState.Ready } as DashboardUiState.Ready
         val overview = readyState.overview
@@ -80,6 +91,7 @@ class DashboardViewModelTest {
         assertEquals("Xiaomi Watch S4", overview.deviceStatus.targetDeviceName)
         assertEquals(WatchConnectionState.DISCONNECTED, overview.deviceStatus.connectionState)
         assertNull(overview.deviceStatus.batteryPercent)
+        assertEquals("--", overview.healthOverview.stepsValue)
         assertEquals(CalendarSyncState.PERMISSION_REQUIRED, overview.calendarOverview.localCalendarState)
         assertEquals(WatchConnectionState.UNSUPPORTED, overview.calendarOverview.nativeWatchSyncState)
         assertTrue(overview.calendarOverview.todayEvents.isEmpty())
@@ -119,6 +131,20 @@ class DashboardViewModelTest {
             lastSyncedAtMillis = nowMillis,
         )
 
+        val healthRepo = StubHealthRepository(
+            HealthDashboardSnapshot(
+                healthConnectAvailability = HealthConnectAvailability.AVAILABLE,
+                hasHealthPermissions = true,
+                stepsToday = HealthMetricSummary(
+                    title = "Steps Today",
+                    primaryValue = "4,120",
+                    unit = "steps",
+                    status = MetricAvailabilityStatus.VERIFIED,
+                    sourceLabel = "Health Connect",
+                    detailNote = "Verified via Health Connect",
+                ),
+            ),
+        )
         val repository = FoundationDashboardRepository(
             calendarRepository = StubCalendarRepository(
                 events = listOf(todayEvent, tomorrowEvent),
@@ -142,10 +168,14 @@ class DashboardViewModelTest {
                 ),
             ),
             eventSyncRepository = StubEventSyncRepository(),
+            healthRepository = healthRepo,
             permissionChecker = CalendarPermissionChecker { true },
             timeProvider = fixedTime,
         )
-        val viewModel = DashboardViewModel(ObserveDashboardOverviewUseCase(repository))
+        val viewModel = DashboardViewModel(
+            observeDashboardOverview = ObserveDashboardOverviewUseCase(repository),
+            refreshHealthData = RefreshHealthDataUseCase(healthRepo),
+        )
 
         val readyState = viewModel.uiState.first { it is DashboardUiState.Ready } as DashboardUiState.Ready
         val overview = readyState.overview
@@ -157,7 +187,17 @@ class DashboardViewModelTest {
         assertEquals("Watch Research Notes", overview.calendarOverview.upcomingEvents.first().title)
         assertEquals(WatchConnectionState.PROTOCOL_UNKNOWN, overview.deviceStatus.connectionState)
         assertEquals(84, overview.deviceStatus.batteryPercent)
+        assertEquals("4,120", overview.healthOverview.stepsValue)
+        assertTrue(overview.healthOverview.hasVerifiedData)
         assertEquals(WatchConnectionState.UNSUPPORTED, overview.calendarOverview.nativeWatchSyncState)
+    }
+
+    private class StubHealthRepository(
+        private val snapshot: HealthDashboardSnapshot = HealthDashboardSnapshot(),
+    ) : HealthRepository {
+        override fun observeHealthSnapshot(): Flow<HealthDashboardSnapshot> = flowOf(snapshot)
+        override fun requiredHealthConnectPermissions(): Set<String> = emptySet()
+        override suspend fun refreshHealthData() = Unit
     }
 
     private class StubEventSyncRepository : EventSyncRepository {
