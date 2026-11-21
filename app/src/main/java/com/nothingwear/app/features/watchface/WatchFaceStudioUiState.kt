@@ -1,6 +1,7 @@
 package com.nothingwear.app.features.watchface
 
 import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
+import com.nothingwear.app.domain.model.WatchFaceAssetPackArtifact
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceExportArtifact
 import com.nothingwear.app.domain.model.WatchFacePresets
@@ -23,5 +24,6 @@ data class WatchFaceStudioUiState(
     val nextCalendarEventLabel: String? = null,
     val isExporting: Boolean = false,
     val lastExportArtifact: WatchFaceExportArtifact? = null,
+    val lastAssetPackArtifact: WatchFaceAssetPackArtifact? = null,
     val feedbackMessage: String? = null,
 )

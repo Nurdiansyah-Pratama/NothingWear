@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Save
@@ -95,6 +96,7 @@ fun WatchFaceStudioRoute(
         onDeleteProject = viewModel::onDeleteProject,
         onExportBackgroundOnly = viewModel::onExportBackgroundOnly,
         onExportPreviewAndSpec = viewModel::onExportPreviewAndSpec,
+        onExportLayerAssetPack = viewModel::onExportLayerAssetPack,
         modifier = modifier,
     )
 }
@@ -126,6 +128,7 @@ fun WatchFaceStudioScreen(
     onDeleteProject: (Long) -> Unit,
     onExportBackgroundOnly: () -> Unit,
     onExportPreviewAndSpec: () -> Unit,
+    onExportLayerAssetPack: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -565,6 +568,31 @@ fun WatchFaceStudioScreen(
                             )
                             Spacer(modifier = Modifier.size(6.dp))
                             Text("Export Full Preview PNG + JSON Spec")
+                        }
+                        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                        OutlinedButton(
+                            onClick = onExportLayerAssetPack,
+                            enabled = !uiState.isExporting,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(NothingRadius.sm),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.FolderZip,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text("Export EasyFace / Mi Create Pack (.zip)")
+                        }
+
+                        uiState.lastAssetPackArtifact?.let { pack ->
+                            Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                            Text(
+                                text = "Last Asset Pack: ${pack.includedEntries.size} transparent 466×466 layers & spec" +
+                                    if (pack.savedToDownloads) " → Download/NothingWear" else "",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
 
                         uiState.lastExportArtifact?.let { artifact ->

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
+import com.nothingwear.app.domain.model.WatchFaceAssetPackArtifact
+import com.nothingwear.app.domain.model.WatchFaceAssetPackResult
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceComplication
 import com.nothingwear.app.domain.model.WatchFaceDialStyle
@@ -16,6 +18,7 @@ import com.nothingwear.app.domain.model.WatchFaceRingStyle
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.usecase.DeleteWatchFaceProjectUseCase
 import com.nothingwear.app.domain.usecase.ExportWatchFaceArtifactUseCase
+import com.nothingwear.app.domain.usecase.ExportWatchFaceAssetPackUseCase
 import com.nothingwear.app.domain.usecase.ObserveSavedWatchFacesUseCase
 import com.nothingwear.app.domain.usecase.SaveWatchFaceProjectUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +38,7 @@ class WatchFaceStudioViewModel @Inject constructor(
     private val saveWatchFaceProject: SaveWatchFaceProjectUseCase,
     private val deleteWatchFaceProject: DeleteWatchFaceProjectUseCase,
     private val exportWatchFaceArtifact: ExportWatchFaceArtifactUseCase,
+    private val exportWatchFaceAssetPack: ExportWatchFaceAssetPackUseCase,
     private val timeProvider: TimeProvider,
 ) : ViewModel() {
 
@@ -60,6 +64,7 @@ class WatchFaceStudioViewModel @Inject constructor(
             nextCalendarEventLabel = nextEventTitle,
             isExporting = controls.isExporting,
             lastExportArtifact = controls.lastExportArtifact,
+            lastAssetPackArtifact = controls.lastAssetPackArtifact,
             feedbackMessage = controls.feedbackMessage,
         )
     }.stateIn(
@@ -215,6 +220,40 @@ class WatchFaceStudioViewModel @Inject constructor(
         )
     }
 
+    fun onExportLayerAssetPack() {
+        if (editorState.value.isExporting) return
+        val draft = editorState.value.draft
+        val template = editorState.value.miFitnessTemplate
+        val nextEvent = uiState.value.nextCalendarEventLabel
+        viewModelScope.launch {
+            editorState.update { it.copy(isExporting = true, feedbackMessage = null) }
+            val result = exportWatchFaceAssetPack(
+                project = draft,
+                nextEventLabel = nextEvent,
+                miFitnessTemplate = template,
+                saveZipToDownloads = true,
+            )
+            editorState.update { state ->
+                when (result) {
+                    is WatchFaceAssetPackResult.Exported -> state.copy(
+                        isExporting = false,
+                        lastAssetPackArtifact = result.artifact,
+                        feedbackMessage = if (result.artifact.savedToDownloads) {
+                            "Exported EasyFace / Mi Create Asset Pack (.zip) to Download/NothingWear (${result.artifact.includedEntries.size} files: transparent 466×466 layers + spec.json + README)."
+                        } else {
+                            "Exported EasyFace / Mi Create Asset Pack (.zip) to app storage (${result.artifact.includedEntries.size} files)."
+                        },
+                    )
+
+                    is WatchFaceAssetPackResult.Failed -> state.copy(
+                        isExporting = false,
+                        feedbackMessage = "Asset pack export failed: ${result.message}",
+                    )
+                }
+            }
+        }
+    }
+
     private fun exportArtifactInternal(
         backgroundOnly: Boolean,
         miFitnessTemplate: MiFitnessCustomTemplate,
@@ -269,6 +308,7 @@ class WatchFaceStudioViewModel @Inject constructor(
         val showSafeZoneGuides: Boolean = true,
         val isExporting: Boolean = false,
         val lastExportArtifact: WatchFaceExportArtifact? = null,
+        val lastAssetPackArtifact: WatchFaceAssetPackArtifact? = null,
         val feedbackMessage: String? = null,
     )
 }

@@ -19,12 +19,15 @@ import com.nothingwear.app.domain.model.WatchFaceProject
 import com.nothingwear.app.domain.model.WatchFaceRingStyle
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.cos
@@ -234,6 +237,193 @@ class WatchFaceBitmapRenderer @Inject constructor(
         }
 
         return Triple(pngFile.absolutePath, jsonFile.absolutePath, gallerySaved)
+    }
+
+    /**
+     * Exports separated 466x466 transparent PNG layers + spec.json + README_EASYFACE.txt
+     * into a single portable ZIP for desktop editors such as EasyFace / Mi Create.
+     */
+    fun exportLayerAssetPackZip(
+        project: WatchFaceProject,
+        nowMillis: Long,
+        zoneId: ZoneId,
+        nextEventLabel: String?,
+        miFitnessTemplate: MiFitnessCustomTemplate,
+        saveToDownloads: Boolean,
+    ): Triple<String, Boolean, List<String>> {
+        val effectiveMotif = if (miFitnessTemplate == MiFitnessCustomTemplate.NONE) {
+            MiFitnessCustomTemplate.CUSTOM_ANALOG
+        } else {
+            miFitnessTemplate
+        }
+
+        val bgBitmap = renderBackgroundLayer466(project)
+        val bezelBitmap = renderBezelRingLayer466(project)
+        val motifBitmap = renderNothingMotifLayer466(project, effectiveMotif)
+        val previewBitmap = render466Bitmap(
+            project = project,
+            nowMillis = nowMillis,
+            zoneId = zoneId,
+            nextEventLabel = nextEventLabel,
+            backgroundOnly = false,
+            miFitnessTemplate = MiFitnessCustomTemplate.NONE,
+        )
+
+        val entries = listOf(
+            "01_background.png",
+            "02_bezel_ring.png",
+            "03_nothing_motif.png",
+            "04_preview_reference.png",
+            "spec.json",
+            "README_EASYFACE.txt",
+        )
+
+        try {
+            val zipBytes = ByteArrayOutputStream().use { baos ->
+                ZipOutputStream(baos).use { zos ->
+                    writeBitmapEntry(zos, "01_background.png", bgBitmap)
+                    writeBitmapEntry(zos, "02_bezel_ring.png", bezelBitmap)
+                    writeBitmapEntry(zos, "03_nothing_motif.png", motifBitmap)
+                    writeBitmapEntry(zos, "04_preview_reference.png", previewBitmap)
+                    writeTextEntry(
+                        zos,
+                        "spec.json",
+                        buildProjectJson(project, nowMillis, backgroundOnly = true, miFitnessTemplate = effectiveMotif),
+                    )
+                    writeTextEntry(
+                        zos,
+                        "README_EASYFACE.txt",
+                        buildEasyFaceReadme(project, effectiveMotif),
+                    )
+                }
+                baos.toByteArray()
+            }
+
+            val baseDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "watchface-exports")
+            baseDir.mkdirs()
+
+            val slug = project.name.lowercase(Locale.US)
+                .replace(Regex("[^a-z0-9]+"), "_")
+                .trim('_')
+                .ifBlank { "watchface" }
+            val fileName = "${slug}_easyface_pack_${nowMillis}.zip"
+            val zipFile = File(baseDir, fileName)
+            zipFile.writeBytes(zipBytes)
+
+            var downloadsSaved = false
+            if (saveToDownloads && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                downloadsSaved = saveZipToDownloads(fileName, zipBytes)
+            }
+
+            return Triple(zipFile.absolutePath, downloadsSaved, entries)
+        } finally {
+            bgBitmap.recycle()
+            bezelBitmap.recycle()
+            motifBitmap.recycle()
+            previewBitmap.recycle()
+        }
+    }
+
+    private fun renderBackgroundLayer466(project: WatchFaceProject): Bitmap {
+        val size = WatchFaceProject.TARGET_RESOLUTION_PX
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val cx = size / 2f
+        val cy = size / 2f
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = project.backgroundColorArgb.toInt()
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(cx, cy, size / 2f, paint)
+        return bitmap
+    }
+
+    private fun renderBezelRingLayer466(project: WatchFaceProject): Bitmap {
+        val size = WatchFaceProject.TARGET_RESOLUTION_PX
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val cx = size / 2f
+        val cy = size / 2f
+        val accentInt = project.accentColorArgb.toInt()
+        val mutedInt = withAlpha(project.textColorArgb.toInt(), 0x99)
+        drawRing(canvas, project.ringStyle, cx, cy, (size / 2f) - 14f, accentInt, mutedInt)
+        return bitmap
+    }
+
+    private fun renderNothingMotifLayer466(
+        project: WatchFaceProject,
+        template: MiFitnessCustomTemplate,
+    ): Bitmap {
+        val size = WatchFaceProject.TARGET_RESOLUTION_PX
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val cx = size / 2f
+        val cy = size / 2f
+        drawMiFitnessTemplateBackdrop(
+            canvas = canvas,
+            template = template,
+            cx = cx,
+            cy = cy,
+            accentColor = project.accentColorArgb.toInt(),
+            textColor = project.textColorArgb.toInt(),
+        )
+        return bitmap
+    }
+
+    private fun writeBitmapEntry(zos: ZipOutputStream, name: String, bitmap: Bitmap) {
+        zos.putNextEntry(ZipEntry(name))
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, zos)
+        zos.closeEntry()
+    }
+
+    private fun writeTextEntry(zos: ZipOutputStream, name: String, content: String) {
+        zos.putNextEntry(ZipEntry(name))
+        zos.write(content.toByteArray(Charsets.UTF_8))
+        zos.closeEntry()
+    }
+
+    private fun saveZipToDownloads(fileName: String, bytes: ByteArray): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val values = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, "application/zip")
+            put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/NothingWear")
+        }
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
+        return runCatching {
+            resolver.openOutputStream(uri)?.use { out ->
+                out.write(bytes)
+                true
+            } ?: false
+        }.getOrDefault(false)
+    }
+
+    private fun buildEasyFaceReadme(
+        project: WatchFaceProject,
+        template: MiFitnessCustomTemplate,
+    ): String = buildString {
+        appendLine("NothingWear Studio — EasyFace / Mi Create Asset Pack (466 x 466 px)")
+        appendLine("==================================================================")
+        appendLine("Project: ${project.name}")
+        appendLine("Category: ${project.category.displayName}")
+        appendLine("Bezel Ring: ${project.ringStyle.label}")
+        appendLine("Motif Alignment: ${template.displayName}")
+        appendLine("Colors: BG=${String.format("#%08X", project.backgroundColorArgb)}, Accent=${String.format("#%08X", project.accentColorArgb)}, Text=${String.format("#%08X", project.textColorArgb)}")
+        appendLine()
+        appendLine("Included 466x466 PNG Layers:")
+        appendLine("  1. 01_background.png        -> Base circular canvas background")
+        appendLine("  2. 02_bezel_ring.png        -> Transparent overlay with outer bezel/index ticks")
+        appendLine("  3. 03_nothing_motif.png     -> Transparent overlay with Nothing geometric / glyph accents")
+        appendLine("  4. 04_preview_reference.png -> Composite visual reference from NothingWear Studio")
+        appendLine("  5. spec.json                -> Machine-readable colors & layout metadata")
+        appendLine()
+        appendLine("Quick Import Steps (EasyFace or Mi Create on Windows):")
+        appendLine("  1. Create a new Xiaomi Watch S4 project (466 x 466 circular canvas).")
+        appendLine("  2. Add 01_background.png as the bottom Background Image layer (0, 0).")
+        appendLine("  3. Add 02_bezel_ring.png and 03_nothing_motif.png as Image overlays at (0, 0).")
+        appendLine("  4. Place your live Watch S4 widgets (digital clock, hands, steps, heart rate, battery) on top.")
+        appendLine("  5. Compile to .bin and test in MiWatchEmulator or install via an authorized Xiaomi/Gadgetbridge workflow.")
     }
 
     private fun savePngToMediaStore(fileName: String, bitmap: Bitmap): Boolean {

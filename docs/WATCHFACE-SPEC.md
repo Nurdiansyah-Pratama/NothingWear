@@ -30,6 +30,7 @@ Accordingly, NothingWear strictly decouples the **Studio Editor** from **Binary 
     4. `Custom postcard` — Clear 9 o'clock (time), 3 o'clock (date), and 6 o'clock (vertical day) zones with Nothing Glyph centerpiece in the middle.
     5. `Custom diamond` — Soft concentric radial halo & 4 diagonal corner ticks framing Mi Fitness's large staggered 4-digit time.
   - **Live Preview Safe-Zone Guide Overlay:** Toggleable cyan dashed guide + ghost clock/hands in `WatchFaceCanvasPreview` (preview-only; never rendered into exported PNGs).
+  - **EasyFace / Mi Create Layer Asset Pack (`.zip`, saved to `Download/NothingWear`):** Portable ZIP bundle containing separated transparent 466×466 PNG layers (`01_background.png`, `02_bezel_ring.png`, `03_nothing_motif.png`, `04_preview_reference.png`), `spec.json`, and `README_EASYFACE.txt` for Windows desktop editors (`EasyFace` / `Mi Create`).
   - **Full Preview 466 × 466 px PNG + Portable JSON Studio Spec** (`schemaVersion = 1`, `installableBinaryWatchFace = false`, `backgroundOnly`, `miFitnessTemplate`).
 - **Documented Technical Limitation:**
   - A preview or PNG is **NOT** a native compiled Xiaomi Watch S4 watch-face package (`.bin`/`.face`). Direct third-party binary flashing is not enabled because it requires Xiaomi's proprietary dial compiler and `WearAuthV2` authenticated transfer.

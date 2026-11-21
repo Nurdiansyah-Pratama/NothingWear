@@ -5,6 +5,8 @@ import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.core.database.dao.WatchFaceDao
 import com.nothingwear.app.core.database.entity.WatchFaceProjectEntity
 import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
+import com.nothingwear.app.domain.model.WatchFaceAssetPackArtifact
+import com.nothingwear.app.domain.model.WatchFaceAssetPackResult
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceComplication
 import com.nothingwear.app.domain.model.WatchFaceDialStyle
@@ -91,6 +93,38 @@ class RoomWatchFaceRepository @Inject constructor(
             }
         } catch (e: Exception) {
             WatchFaceExportResult.Failed(e.message ?: "Failed to export 466x466 preview and spec.")
+        }
+    }
+
+    override suspend fun exportLayerAssetPackZip(
+        project: WatchFaceProject,
+        nextEventLabel: String?,
+        miFitnessTemplate: MiFitnessCustomTemplate,
+        saveZipToDownloads: Boolean,
+    ): WatchFaceAssetPackResult = withContext(ioDispatcher) {
+        try {
+            val now = timeProvider.nowMillis()
+            val zoneId = timeProvider.zoneId()
+            val (zipPath, savedToDownloads, entries) = bitmapRenderer.exportLayerAssetPackZip(
+                project = project,
+                nowMillis = now,
+                zoneId = zoneId,
+                nextEventLabel = nextEventLabel,
+                miFitnessTemplate = miFitnessTemplate,
+                saveToDownloads = saveZipToDownloads,
+            )
+            WatchFaceAssetPackResult.Exported(
+                WatchFaceAssetPackArtifact(
+                    projectName = project.name,
+                    zipFilePath = zipPath,
+                    savedToDownloads = savedToDownloads,
+                    includedEntries = entries,
+                    miFitnessTemplate = miFitnessTemplate,
+                    exportedAtMillis = now,
+                ),
+            )
+        } catch (e: Exception) {
+            WatchFaceAssetPackResult.Failed(e.message ?: "Failed to export EasyFace layer asset pack ZIP.")
         }
     }
 

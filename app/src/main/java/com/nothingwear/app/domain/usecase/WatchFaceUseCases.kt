@@ -1,6 +1,7 @@
 package com.nothingwear.app.domain.usecase
 
 import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
+import com.nothingwear.app.domain.model.WatchFaceAssetPackResult
 import com.nothingwear.app.domain.model.WatchFaceExportResult
 import com.nothingwear.app.domain.model.WatchFaceProject
 import com.nothingwear.app.domain.repository.WatchFaceRepository
@@ -40,5 +41,21 @@ class ExportWatchFaceArtifactUseCase @Inject constructor(
         savePngToGallery = savePngToGallery,
         backgroundOnly = backgroundOnly,
         miFitnessTemplate = miFitnessTemplate,
+    )
+}
+
+class ExportWatchFaceAssetPackUseCase @Inject constructor(
+    private val repository: WatchFaceRepository,
+) {
+    suspend operator fun invoke(
+        project: WatchFaceProject,
+        nextEventLabel: String?,
+        miFitnessTemplate: MiFitnessCustomTemplate = MiFitnessCustomTemplate.NONE,
+        saveZipToDownloads: Boolean = true,
+    ): WatchFaceAssetPackResult = repository.exportLayerAssetPackZip(
+        project = project,
+        nextEventLabel = nextEventLabel,
+        miFitnessTemplate = miFitnessTemplate,
+        saveZipToDownloads = saveZipToDownloads,
     )
 }

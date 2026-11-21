@@ -111,6 +111,20 @@ sealed interface WatchFaceExportResult {
     data class Failed(val message: String) : WatchFaceExportResult
 }
 
+data class WatchFaceAssetPackArtifact(
+    val projectName: String,
+    val zipFilePath: String,
+    val savedToDownloads: Boolean,
+    val includedEntries: List<String>,
+    val miFitnessTemplate: MiFitnessCustomTemplate,
+    val exportedAtMillis: Long,
+)
+
+sealed interface WatchFaceAssetPackResult {
+    data class Exported(val artifact: WatchFaceAssetPackArtifact) : WatchFaceAssetPackResult
+    data class Failed(val message: String) : WatchFaceAssetPackResult
+}
+
 data class WatchFaceColorPreset(
     val name: String,
     val argb: Long,

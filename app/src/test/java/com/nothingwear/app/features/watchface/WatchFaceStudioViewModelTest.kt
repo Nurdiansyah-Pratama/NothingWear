@@ -6,6 +6,8 @@ import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
 import com.nothingwear.app.domain.model.MiFitnessCustomTemplate
+import com.nothingwear.app.domain.model.WatchFaceAssetPackArtifact
+import com.nothingwear.app.domain.model.WatchFaceAssetPackResult
 import com.nothingwear.app.domain.model.WatchFaceCategory
 import com.nothingwear.app.domain.model.WatchFaceDialStyle
 import com.nothingwear.app.domain.model.WatchFaceExportArtifact
@@ -15,6 +17,7 @@ import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.WatchFaceRepository
 import com.nothingwear.app.domain.usecase.DeleteWatchFaceProjectUseCase
 import com.nothingwear.app.domain.usecase.ExportWatchFaceArtifactUseCase
+import com.nothingwear.app.domain.usecase.ExportWatchFaceAssetPackUseCase
 import com.nothingwear.app.domain.usecase.ObserveSavedWatchFacesUseCase
 import com.nothingwear.app.domain.usecase.SaveWatchFaceProjectUseCase
 import kotlinx.coroutines.Dispatchers
@@ -93,6 +96,7 @@ class WatchFaceStudioViewModelTest {
             saveWatchFaceProject = SaveWatchFaceProjectUseCase(fakeWatchFaceRepo),
             deleteWatchFaceProject = DeleteWatchFaceProjectUseCase(fakeWatchFaceRepo),
             exportWatchFaceArtifact = ExportWatchFaceArtifactUseCase(fakeWatchFaceRepo),
+            exportWatchFaceAssetPack = ExportWatchFaceAssetPackUseCase(fakeWatchFaceRepo),
             timeProvider = fixedTime,
         )
 
@@ -135,6 +139,12 @@ class WatchFaceStudioViewModelTest {
         )
         assertTrue(viewModel.uiState.value.feedbackMessage?.contains("Custom analog") == true)
 
+        viewModel.onExportLayerAssetPack()
+        advanceUntilIdle()
+        assertNotNull(viewModel.uiState.value.lastAssetPackArtifact)
+        assertEquals(6, viewModel.uiState.value.lastAssetPackArtifact?.includedEntries?.size)
+        assertTrue(viewModel.uiState.value.feedbackMessage?.contains("Download/NothingWear") == true)
+
         job.cancel()
     }
 
@@ -168,6 +178,29 @@ class WatchFaceStudioViewModelTest {
                 jsonFilePath = "/tmp/test.json",
                 savedToGallery = savePngToGallery,
                 backgroundOnly = backgroundOnly,
+                miFitnessTemplate = miFitnessTemplate,
+                exportedAtMillis = 1_763_690_000_000L,
+            ),
+        )
+
+        override suspend fun exportLayerAssetPackZip(
+            project: WatchFaceProject,
+            nextEventLabel: String?,
+            miFitnessTemplate: MiFitnessCustomTemplate,
+            saveZipToDownloads: Boolean,
+        ): WatchFaceAssetPackResult = WatchFaceAssetPackResult.Exported(
+            WatchFaceAssetPackArtifact(
+                projectName = project.name,
+                zipFilePath = "/tmp/test_easyface_pack.zip",
+                savedToDownloads = saveZipToDownloads,
+                includedEntries = listOf(
+                    "01_background.png",
+                    "02_bezel_ring.png",
+                    "03_nothing_motif.png",
+                    "04_preview_reference.png",
+                    "spec.json",
+                    "README_EASYFACE.txt",
+                ),
                 miFitnessTemplate = miFitnessTemplate,
                 exportedAtMillis = 1_763_690_000_000L,
             ),

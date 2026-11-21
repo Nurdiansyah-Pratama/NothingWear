@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0] — EasyFace / Mi Create Transparent Layer Asset Pack Export (2026-11-21)
+
+### Added
+- Added **Export EasyFace / Mi Create Pack (`.zip`)** in Watch Face Studio (`WatchFaceBitmapRenderer`, `RoomWatchFaceRepository`, `WatchFaceStudioScreen`) generating a portable ZIP in `Download/NothingWear` containing separated transparent 466×466 PNG layers (`01_background.png`, `02_bezel_ring.png`, `03_nothing_motif.png`, `04_preview_reference.png`), `spec.json`, and `README_EASYFACE.txt`.
+- Updated `WatchFaceStudioViewModelTest` and `docs/WATCHFACE-SPEC.md`.
+
 ## [1.2.0] — NothingWear Home Screen Widget (2026-11-21)
 
 ### Added
