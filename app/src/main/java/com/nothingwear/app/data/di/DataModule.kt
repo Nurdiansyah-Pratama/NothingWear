@@ -13,11 +13,13 @@ import com.nothingwear.app.data.event.WatchEventSyncRepository
 import com.nothingwear.app.data.preferences.DataStoreThemePreferencesRepository
 import com.nothingwear.app.data.repository.FoundationDashboardRepository
 import com.nothingwear.app.data.repository.OfflineFirstCalendarRepository
+import com.nothingwear.app.data.watchface.RoomWatchFaceRepository
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.DashboardRepository
 import com.nothingwear.app.domain.repository.DeviceDiagnosticsRepository
 import com.nothingwear.app.domain.repository.EventSyncRepository
 import com.nothingwear.app.domain.repository.ThemePreferencesRepository
+import com.nothingwear.app.domain.repository.WatchFaceRepository
 import com.nothingwear.protocol.watchs4.WatchS4ProtocolAdapter
 import com.nothingwear.protocol.watchs4.XiaomiWatchS4ProtocolAdapter
 import dagger.Binds
@@ -67,6 +69,12 @@ abstract class DataBindingsModule {
     abstract fun bindEventSyncRepository(
         impl: WatchEventSyncRepository,
     ): EventSyncRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWatchFaceRepository(
+        impl: RoomWatchFaceRepository,
+    ): WatchFaceRepository
 }
 
 @Module

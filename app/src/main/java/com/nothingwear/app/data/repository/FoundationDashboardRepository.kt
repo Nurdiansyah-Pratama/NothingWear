@@ -149,7 +149,7 @@ class FoundationDashboardRepository @Inject constructor(
                 todayEvents = todayEvents,
                 upcomingEvents = upcomingEvents,
             ),
-            currentMilestone = "M4 · Sync & Bridge",
+            currentMilestone = "M5 · Studio",
         )
     }
 

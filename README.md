@@ -2,7 +2,7 @@
 
 Independent, offline-first Android companion application and research workspace for **Xiaomi Watch S4**, focused on personal calendar management, BLE device diagnostics, Watch Face Studio, and ethical protocol research for enabling native Watch S4 Events synchronization on non-Xiaomi devices (primary target: **Infinix XOS 15**).
 
-> **Current Status:** `M4 — Events Sync & Watch Reminder Bridge` complete (isolated `:protocol-adapter:xiaomi-watch-s4` Gradle module honestly documenting `WearAuthV2` auth limitation + WorkManager Watch Reminder Bridge fallback delivering calendar alerts via official Mi Fitness `NotifySyncService`, on-demand `POST_NOTIFICATIONS`, and 1-tap Test Watch Alert). Watch Face Studio (`M5`) and Health Dashboard (`M6`) await approval.
+> **Current Status:** `M5 — Watch Face Studio` complete (interactive 466×466 px circular editor, 6 customizable categories, color/typography/layout/widget slots, Room v2 local project library with non-destructive v1→v2 migration, 466×466 PNG + JSON spec export, and honest Watch S4 binary format documentation). Health & Device Dashboard (`M6`) and Integration/Release (`M7`) await approval.
 
 ## Tech Stack (Verified Baseline)
 

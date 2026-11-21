@@ -15,7 +15,9 @@
 python -m unittest discover -s protocol-lab/packet-parser -p "test_*.py" -v
 ```
 
-## M0–M4 Test Coverage
+## M0–M5 Test Coverage
+- `WatchFacePresetsTest`: Verifies all 6 Watch Face Studio categories produce distinct valid 466×466 presets.
+- `WatchFaceStudioViewModelTest`: Verifies preset switching, customization, Room project save/load flow, live Next Event integration, and 466×466 PNG + JSON export result.
 - `XiaomiWatchS4ProtocolAdapterTest` (`:protocol-adapter:xiaomi-watch-s4`): Verifies honest `UNSUPPORTED` capability report (`0xFDAB`, `0x1101`, `WearAuthV2`), payload sanitization/bounds, and blocked unauthorized transmission.
 - `ReminderSchedulePlannerTest`: Verifies 48-hour lookahead scheduling, lead-time offsets, past/far-future filtering, and 08:00 local anchoring for UTC all-day events.
 - `EventSyncViewModelTest`: Verifies honest `UNSUPPORTED` native status, bridge toggle, lead-time selection, and test watch alert feedback.

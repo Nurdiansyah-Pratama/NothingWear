@@ -55,3 +55,10 @@
 - **Context:** M3 confirmed that Xiaomi Watch S4 native Events injection is gated by `WearAuthV1`/`WearAuthV2` authenticated encryption held exclusively by Mi Fitness, and NothingWear's security rules forbid bypassing authentication or tampering with Mi Fitness/firmware.
 - **Decision:** Extract `:protocol-adapter:xiaomi-watch-s4` as an isolated pure-Kotlin JVM Gradle module reporting honest `UNSUPPORTED` capability with sanitized event payload validation, and deliver a reliable user-approved fallback (`WorkManager 2.12.0` + `NotificationChannel` + on-demand `POST_NOTIFICATIONS`) that forwards calendar alerts through Mi Fitness's official `NotifySyncService` to Xiaomi Watch S4.
 - **Consequences:** Zero unauthorized BLE writes, Mi Fitness pairing remains 100% stable, and users on Infinix XOS 15 receive timely calendar alerts directly on Xiaomi Watch S4.
+
+## ADR-009: Watch Face Studio Decoupled Export + Non-Destructive Room Migration v1 → v2 (M5)
+- **Date:** 2026-11-21
+- **Status:** Accepted
+- **Context:** Static analysis of `com.xiaomi.wearable 3.60.0i` confirmed native dial installation uses `FaceInstallBleV2Impl` over `WearAuthV2` with proprietary Xiaomi Vela dial binaries, whereas custom photo dials accept standard images (`WatchFaceImage`). Existing users already have M1 calendar data in Room v1.
+- **Decision:** Add non-destructive `MIGRATION_1_2` creating `watch_face_projects` (exporting Room schema `2.json`), build a pixel-exact 466×466 px Canvas/Bitmap renderer exporting PNG (`Pictures/NothingWear` via permissionless Android 10+ MediaStore) + portable JSON spec, and explicitly mark native binary `.bin`/`.face` installation as unsupported rather than misrepresenting previews as installable watch faces.
+- **Consequences:** Preserves existing user calendar data cleanly, provides a real interactive Watch Face Studio with usable 466×466 artwork export, and maintains strict engineering honesty.

@@ -66,7 +66,7 @@ Request permissions only when the corresponding milestone feature is active:
 - **M1 — Calendar Engine:** Completed & approved.
 - **M2 — Device & BLE Discovery:** Completed & physically verified on Infinix X6880 + Xiaomi Watch S4.
 - **M3 — Mi Fitness Reverse Engineering:** Completed & reviewed.
-- **M4 — Native Events Synchronization:** Completed (isolated `:protocol-adapter:xiaomi-watch-s4` documenting `WearAuthV2` limitation + verified WorkManager Watch Reminder Bridge fallback via Mi Fitness `NotifySyncService` — pending user physical verification & approval for M5).
-- **M5 — Watch Face Studio:** Not started.
+- **M4 — Native Events Synchronization:** Completed & physically verified on Infinix X6880 + Xiaomi Watch S4.
+- **M5 — Watch Face Studio:** Completed (interactive 466×466 editor, 6 categories, Room v1→v2 project save/load, 466×466 PNG + JSON spec export, honest Watch S4 binary format research — pending user verification & approval for M6).
 - **M6 — Health & Device Dashboard:** Not started.
 - **M7 — Integration & Release:** Not started.

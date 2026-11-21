@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0-m5] — M5 Watch Face Studio (2026-11-21)
+
+### Added
+- Implemented interactive 466 × 466 px circular Watch Face Studio (`WatchFaceCanvasPreview`, `WatchFaceStudioScreen`, `WatchFaceStudioViewModel`) with 6 curated design categories (`Nothing`, `Minimal`, `Analog`, `Cyberpunk`, `Tactical`, `Custom`) plus canonical preset manifest (`watchface-workspace/themes/presets.json`).
+- Added customization for background/accent/text colors, 4 dial layouts (`Digital Center`, `Digital Stacked`, `Analog Classic`, `Hybrid Dual`), 5 bezel ring styles, 4 typography styles, 12h/24h & live seconds toggles, time scale slider, and 4 complication slots (live Date, live Next Event from Room, Timezone, plus honest `--` placeholders for Battery/HR).
+- Upgraded Room `NothingWearDatabase` non-destructively from v1 → v2 (`MIGRATION_1_2`, exported `2.json`) with `watch_face_projects` table for offline save, update, duplicate, load, and delete.
+- Implemented decoupled 466 × 466 px PNG (`WatchFaceBitmapRenderer`, also saved to `Pictures/NothingWear` via permissionless Android 10+ MediaStore for Mi Fitness custom photo dials) + portable JSON spec export, alongside documented `FaceInstallBleV2Impl` / `WearAuthV2` native binary limitation.
+- Added unit tests (`WatchFacePresetsTest`, `WatchFaceStudioViewModelTest`).
+
 ## [0.4.0-m4] — M4 Events Sync Adapter & Watch Reminder Bridge (2026-11-21)
 
 ### Added

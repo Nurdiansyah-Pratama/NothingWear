@@ -32,7 +32,7 @@ import com.nothingwear.app.features.dashboard.DashboardRoute
 import com.nothingwear.app.features.device.DevicesRoute
 import com.nothingwear.app.features.notifications.EventSyncRoute
 import com.nothingwear.app.features.settings.SettingsRoute
-import com.nothingwear.app.features.watchface.WatchFaceStudioScreen
+import com.nothingwear.app.features.watchface.WatchFaceStudioRoute
 
 private const val EVENT_DETAIL_ROUTE_PATTERN = "calendar/event/{instanceKey}"
 private const val WATCH_SYNC_ROUTE = "calendar/watch-sync"
@@ -158,7 +158,7 @@ fun NothingWearApp(
                 )
             }
             composable(NothingWearDestination.WATCH_FACE_STUDIO.route) {
-                WatchFaceStudioScreen()
+                WatchFaceStudioRoute()
             }
             composable(NothingWearDestination.DEVICES.route) {
                 DevicesRoute()

@@ -1,0 +1,288 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "38561df9a59acca076689b576c0da351",
+    "entities": [
+      {
+        "tableName": "calendar_accounts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`calendar_id` INTEGER NOT NULL, `display_name` TEXT NOT NULL, `account_name` TEXT NOT NULL, `account_type` TEXT NOT NULL, `color` INTEGER NOT NULL, `is_selected` INTEGER NOT NULL, `is_primary` INTEGER NOT NULL, PRIMARY KEY(`calendar_id`))",
+        "fields": [
+          {
+            "fieldPath": "calendarId",
+            "columnName": "calendar_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "display_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountName",
+            "columnName": "account_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountType",
+            "columnName": "account_type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "color",
+            "columnName": "color",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isSelected",
+            "columnName": "is_selected",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isPrimary",
+            "columnName": "is_primary",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "calendar_id"
+          ]
+        }
+      },
+      {
+        "tableName": "calendar_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`instance_key` TEXT NOT NULL, `event_id` INTEGER NOT NULL, `calendar_id` INTEGER NOT NULL, `calendar_display_name` TEXT NOT NULL, `calendar_color` INTEGER NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `location` TEXT, `start_time_millis` INTEGER NOT NULL, `end_time_millis` INTEGER NOT NULL, `is_all_day` INTEGER NOT NULL, `timezone` TEXT, `last_synced_at_millis` INTEGER NOT NULL, PRIMARY KEY(`instance_key`))",
+        "fields": [
+          {
+            "fieldPath": "instanceKey",
+            "columnName": "instance_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventId",
+            "columnName": "event_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calendarId",
+            "columnName": "calendar_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calendarDisplayName",
+            "columnName": "calendar_display_name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calendarColor",
+            "columnName": "calendar_color",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "location",
+            "columnName": "location",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startTimeMillis",
+            "columnName": "start_time_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTimeMillis",
+            "columnName": "end_time_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAllDay",
+            "columnName": "is_all_day",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timezone",
+            "columnName": "timezone",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastSyncedAtMillis",
+            "columnName": "last_synced_at_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "instance_key"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_calendar_events_calendar_id",
+            "unique": false,
+            "columnNames": [
+              "calendar_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calendar_events_calendar_id` ON `${TABLE_NAME}` (`calendar_id`)"
+          },
+          {
+            "name": "index_calendar_events_start_time_millis",
+            "unique": false,
+            "columnNames": [
+              "start_time_millis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calendar_events_start_time_millis` ON `${TABLE_NAME}` (`start_time_millis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "watch_face_projects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `category` TEXT NOT NULL, `dial_style` TEXT NOT NULL, `ring_style` TEXT NOT NULL, `font_style` TEXT NOT NULL, `background_color_argb` INTEGER NOT NULL, `accent_color_argb` INTEGER NOT NULL, `text_color_argb` INTEGER NOT NULL, `is_24_hour` INTEGER NOT NULL, `show_seconds` INTEGER NOT NULL, `time_scale` REAL NOT NULL, `top_complication` TEXT NOT NULL, `bottom_complication` TEXT NOT NULL, `left_complication` TEXT NOT NULL, `right_complication` TEXT NOT NULL, `updated_at_millis` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dialStyle",
+            "columnName": "dial_style",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ringStyle",
+            "columnName": "ring_style",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fontStyle",
+            "columnName": "font_style",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "backgroundColorArgb",
+            "columnName": "background_color_argb",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accentColorArgb",
+            "columnName": "accent_color_argb",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "textColorArgb",
+            "columnName": "text_color_argb",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "is24Hour",
+            "columnName": "is_24_hour",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "showSeconds",
+            "columnName": "show_seconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeScale",
+            "columnName": "time_scale",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "topComplication",
+            "columnName": "top_complication",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bottomComplication",
+            "columnName": "bottom_complication",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leftComplication",
+            "columnName": "left_complication",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rightComplication",
+            "columnName": "right_complication",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updated_at_millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '38561df9a59acca076689b576c0da351')"
+    ]
+  }
+}

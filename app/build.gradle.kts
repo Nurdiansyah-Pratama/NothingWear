@@ -20,8 +20,8 @@ android {
         applicationId = "com.nothingwear.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.4.0-m4"
+        versionCode = 5
+        versionName = "0.5.0-m5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

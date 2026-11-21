@@ -151,7 +151,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                MetadataRow(label = "Milestone", value = "M4 — Events Sync & Bridge")
+                MetadataRow(label = "Milestone", value = "M5 — Watch Face Studio")
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = NothingSpacing.sm),
                     color = MaterialTheme.colorScheme.outlineVariant,

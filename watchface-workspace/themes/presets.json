@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "targetResolutionPx": 466,
+  "targetWearable": "Xiaomi Watch S4",
+  "categories": [
+    { "id": "NOTHING", "name": "Nothing Dot Matrix", "dialStyle": "DIGITAL_STACKED", "ringStyle": "DOTS_12", "accent": "#FFD71921" },
+    { "id": "MINIMAL", "name": "Minimal Pure", "dialStyle": "DIGITAL_CENTER", "ringStyle": "NONE", "accent": "#FFF5F5F5" },
+    { "id": "ANALOG", "name": "Precision Analog", "dialStyle": "ANALOG_CLASSIC", "ringStyle": "TICKS_60", "accent": "#FFD71921" },
+    { "id": "CYBERPUNK", "name": "Cyber Telemetry", "dialStyle": "DIGITAL_CENTER", "ringStyle": "SEGMENTED_ARC", "accent": "#FF06B6D4" },
+    { "id": "TACTICAL", "name": "Tactical Field", "dialStyle": "HYBRID_DUAL", "ringStyle": "TACTICAL_COMPASS", "accent": "#FFF59E0B" },
+    { "id": "CUSTOM", "name": "Custom Studio", "dialStyle": "HYBRID_DUAL", "ringStyle": "DOTS_12", "accent": "#FF10B981" }
+  ]
+}
