@@ -5,13 +5,17 @@ import com.nothingwear.app.core.permissions.CalendarPermissionChecker
 import com.nothingwear.app.domain.model.AgendaRange
 import com.nothingwear.app.domain.model.BridgeActionResult
 import com.nothingwear.app.domain.model.CalendarEvent
+import com.nothingwear.app.domain.model.CalendarMutationResult
 import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
+import com.nothingwear.app.domain.model.CreateCalendarEventInput
 import com.nothingwear.app.domain.model.EventSyncOverview
 import com.nothingwear.app.domain.model.ReminderLeadTime
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.repository.EventSyncRepository
+import com.nothingwear.app.domain.usecase.CreateCalendarEventUseCase
+import com.nothingwear.app.domain.usecase.DeleteCalendarEventUseCase
 import com.nothingwear.app.domain.usecase.ObserveCalendarSyncMetadataUseCase
 import com.nothingwear.app.domain.usecase.ObserveCalendarsUseCase
 import com.nothingwear.app.domain.usecase.RescheduleWatchRemindersUseCase
@@ -132,6 +136,8 @@ class CalendarViewModelTest {
             observeCalendarSyncMetadata = ObserveCalendarSyncMetadataUseCase(fakeRepo),
             syncDeviceCalendars = SyncDeviceCalendarsUseCase(fakeRepo),
             toggleCalendarSelection = ToggleCalendarSelectionUseCase(fakeRepo),
+            createCalendarEvent = CreateCalendarEventUseCase(fakeRepo),
+            deleteCalendarEvent = DeleteCalendarEventUseCase(fakeRepo),
             rescheduleWatchReminders = RescheduleWatchRemindersUseCase(stubEventSyncRepo),
             permissionChecker = CalendarPermissionChecker { false },
             timeProvider = fixedTime,
@@ -142,11 +148,21 @@ class CalendarViewModelTest {
         }
         advanceUntilIdle()
 
-        // Even with permission denied, offline Room cache in WEEK window (default) shows todayEvent
+        // Default MONTH_GRID builds 42 cells (6x7) and shows todayEvent on Nov 20
         assertFalse(viewModel.uiState.value.hasPermission)
-        assertEquals(1, viewModel.uiState.value.totalFilteredEvents)
+        assertEquals(CalendarViewMode.MONTH_GRID, viewModel.uiState.value.viewMode)
+        assertEquals(42, viewModel.uiState.value.monthCells.size)
+        assertEquals(1, viewModel.uiState.value.selectedDateEvents.size)
+        assertEquals("Sprint Planning", viewModel.uiState.value.selectedDateEvents.first().title)
 
-        // Switching to UPCOMING (30 days) reveals both events
+        // Selecting Nov 30 in Month Grid surfaces Dentist Checkup
+        viewModel.onSelectDate(LocalDate.of(2026, 11, 30))
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.selectedDateEvents.size)
+        assertEquals("Dentist Checkup", viewModel.uiState.value.selectedDateEvents.first().title)
+
+        // Switch to AGENDA_LIST & UPCOMING (30 days) reveals both events
+        viewModel.onSelectViewMode(CalendarViewMode.AGENDA_LIST)
         viewModel.onSelectRange(AgendaRange.UPCOMING)
         advanceUntilIdle()
         assertEquals(2, viewModel.uiState.value.totalFilteredEvents)
@@ -162,6 +178,22 @@ class CalendarViewModelTest {
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.hasPermission)
         assertEquals(1, fakeRepo.syncCount)
+
+        // Creating a new event delegates to repository and closes sheet
+        viewModel.onOpenCreateEventSheet(LocalDate.of(2026, 11, 22))
+        viewModel.onDraftTitleChanged("Watch S4 Sync Test")
+        viewModel.onSaveCreatedEvent()
+        advanceUntilIdle()
+        assertEquals(1, fakeRepo.createdInputs.size)
+        assertEquals("Watch S4 Sync Test", fakeRepo.createdInputs.first().title)
+        assertFalse(viewModel.uiState.value.showCreateEventSheet)
+
+        // Deleting an event delegates to repository
+        val toDelete = viewModel.uiState.value.groupedEvents.first().events.first()
+        viewModel.onRequestDeleteEvent(toDelete)
+        viewModel.onConfirmDeleteEvent()
+        advanceUntilIdle()
+        assertEquals(listOf(2L), fakeRepo.deletedEventIds)
 
         job.cancel()
     }
@@ -182,6 +214,8 @@ class CalendarViewModelTest {
             ),
         )
         var syncCount: Int = 0
+        val createdInputs = mutableListOf<CreateCalendarEventInput>()
+        val deletedEventIds = mutableListOf<Long>()
 
         override fun observeCalendars(): Flow<List<CalendarSource>> = calendarsFlow
         override fun observeSelectedEvents(): Flow<List<CalendarEvent>> = eventsFlow
@@ -203,6 +237,16 @@ class CalendarViewModelTest {
             calendarsFlow.value = calendarsFlow.value.map {
                 if (it.id == calendarId) it.copy(isSelected = selected) else it
             }
+        }
+
+        override suspend fun createEvent(input: CreateCalendarEventInput): CalendarMutationResult {
+            createdInputs += input
+            return CalendarMutationResult.Created(999L)
+        }
+
+        override suspend fun deleteEvent(eventId: Long): CalendarMutationResult {
+            deletedEventIds += eventId
+            return CalendarMutationResult.Deleted
         }
     }
 }

@@ -53,3 +53,21 @@ sealed interface CalendarSyncResult {
 
     data class Error(val message: String) : CalendarSyncResult
 }
+
+data class CreateCalendarEventInput(
+    val calendarId: Long,
+    val title: String,
+    val startTimeMillis: Long,
+    val endTimeMillis: Long,
+    val isAllDay: Boolean = false,
+    val location: String? = null,
+    val description: String? = null,
+    val timezone: String,
+)
+
+sealed interface CalendarMutationResult {
+    data class Created(val eventId: Long) : CalendarMutationResult
+    data object Deleted : CalendarMutationResult
+    data object PermissionDenied : CalendarMutationResult
+    data class Error(val message: String) : CalendarMutationResult
+}

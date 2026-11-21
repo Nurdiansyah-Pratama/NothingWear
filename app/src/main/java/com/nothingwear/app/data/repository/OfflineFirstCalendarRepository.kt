@@ -12,9 +12,11 @@ import com.nothingwear.app.core.database.entity.CalendarEventEntity
 import com.nothingwear.app.core.permissions.CalendarPermissionChecker
 import com.nothingwear.app.data.calendar.DeviceCalendarDataSource
 import com.nothingwear.app.domain.model.CalendarEvent
+import com.nothingwear.app.domain.model.CalendarMutationResult
 import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
+import com.nothingwear.app.domain.model.CreateCalendarEventInput
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.util.AgendaTimeWindows
 import kotlinx.coroutines.flow.Flow
@@ -144,6 +146,48 @@ class OfflineFirstCalendarRepository @Inject constructor(
 
     override suspend fun setCalendarSelected(calendarId: Long, selected: Boolean) {
         calendarDao.setCalendarSelected(calendarId = calendarId, selected = selected)
+    }
+
+    override suspend fun createEvent(input: CreateCalendarEventInput): CalendarMutationResult {
+        if (!permissionChecker.hasWriteCalendarPermission()) {
+            return CalendarMutationResult.PermissionDenied
+        }
+        if (input.title.isBlank()) {
+            return CalendarMutationResult.Error("Event title cannot be empty.")
+        }
+        return try {
+            val createdId = deviceCalendarDataSource.createEvent(input)
+            if (createdId <= 0L) {
+                CalendarMutationResult.Error("Calendar provider did not return an event ID.")
+            } else {
+                calendarDao.setCalendarSelected(calendarId = input.calendarId, selected = true)
+                syncFromDevice()
+                CalendarMutationResult.Created(createdId)
+            }
+        } catch (_: SecurityException) {
+            CalendarMutationResult.PermissionDenied
+        } catch (e: Exception) {
+            CalendarMutationResult.Error(e.message ?: "Failed to create event in Android Calendar.")
+        }
+    }
+
+    override suspend fun deleteEvent(eventId: Long): CalendarMutationResult {
+        if (!permissionChecker.hasWriteCalendarPermission()) {
+            return CalendarMutationResult.PermissionDenied
+        }
+        return try {
+            val rowsDeleted = deviceCalendarDataSource.deleteEvent(eventId)
+            if (rowsDeleted > 0) {
+                syncFromDevice()
+                CalendarMutationResult.Deleted
+            } else {
+                CalendarMutationResult.Error("Event could not be deleted (it may belong to a read-only calendar).")
+            }
+        } catch (_: SecurityException) {
+            CalendarMutationResult.PermissionDenied
+        } catch (e: Exception) {
+            CalendarMutationResult.Error(e.message ?: "Failed to delete event from Android Calendar.")
+        }
     }
 
     private fun CalendarAccountEntity.toDomain() = CalendarSource(

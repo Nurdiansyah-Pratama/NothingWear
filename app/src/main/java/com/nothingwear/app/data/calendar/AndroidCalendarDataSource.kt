@@ -1,9 +1,11 @@
 package com.nothingwear.app.data.calendar
 
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.provider.CalendarContract
 import com.nothingwear.app.core.common.IoDispatcher
+import com.nothingwear.app.domain.model.CreateCalendarEventInput
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -37,6 +39,8 @@ data class RawDeviceEventInstance(
 interface DeviceCalendarDataSource {
     suspend fun fetchCalendars(): List<RawDeviceCalendar>
     suspend fun fetchEventInstances(startMillis: Long, endMillis: Long): List<RawDeviceEventInstance>
+    suspend fun createEvent(input: CreateCalendarEventInput): Long = -1L
+    suspend fun deleteEvent(eventId: Long): Int = 0
 }
 
 @Singleton
@@ -177,6 +181,31 @@ class AndroidCalendarDataSource @Inject constructor(
             }
         }
         results
+    }
+
+    override suspend fun createEvent(input: CreateCalendarEventInput): Long = withContext(ioDispatcher) {
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.CALENDAR_ID, input.calendarId)
+            put(CalendarContract.Events.TITLE, input.title.trim())
+            put(CalendarContract.Events.DTSTART, input.startTimeMillis)
+            put(CalendarContract.Events.DTEND, maxOf(input.endTimeMillis, input.startTimeMillis))
+            put(CalendarContract.Events.ALL_DAY, if (input.isAllDay) 1 else 0)
+            put(CalendarContract.Events.EVENT_TIMEZONE, if (input.isAllDay) "UTC" else input.timezone)
+            if (!input.location.isNullOrBlank()) {
+                put(CalendarContract.Events.EVENT_LOCATION, input.location.trim())
+            }
+            if (!input.description.isNullOrBlank()) {
+                put(CalendarContract.Events.DESCRIPTION, input.description.trim())
+            }
+        }
+        val insertedUri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            ?: throw IllegalStateException("Android Calendar Provider rejected event insert.")
+        ContentUris.parseId(insertedUri)
+    }
+
+    override suspend fun deleteEvent(eventId: Long): Int = withContext(ioDispatcher) {
+        val deleteUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
+        context.contentResolver.delete(deleteUri, null, null)
     }
 
     private companion object {

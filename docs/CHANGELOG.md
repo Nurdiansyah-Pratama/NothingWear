@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.0] — Calendar Month Grid, Add/Delete Events & Event Detail Bridge Status (2026-11-21)
+
+### Added
+- Added Google Calendar–style **Month Grid** view (`6 × 7` bordered date cells with inline colored event pills, `+N` overflow badge, month navigation, `Today` jump, and selected-day agenda list) alongside a 1-tap **Month Grid / Agenda List** view switcher in `CalendarScreen`.
+- Added **Create Event** bottom sheet (FAB `+` & per-day `+ Add Event` with calendar picker, date stepper, all-day toggle, start/duration controls, location & notes) and **Delete Event** confirmation dialogs in both `CalendarScreen` and `EventDetailScreen`, backed by on-demand `WRITE_CALENDAR` permission (writing directly to Android / Google Calendar Provider, immediately refreshing Room cache and rescheduling Watch Reminder Bridge alerts).
+- Widened Calendar Provider fetch window to `-60 days .. +120 days` for smooth multi-month browsing.
+
+### Fixed
+- Replaced the stale M1 wording (*"requires M3 protocol research and M4 physical verification"*) in `EventDetailScreen` with live **Watch Reminder Bridge** alert status (`ALERT QUEUED` / `BRIDGE ACTIVE` / `BRIDGE OFF`) + 1-tap link to Watch Sync Bridge while keeping Native Watch S4 Events honestly marked `UNSUPPORTED (WearAuthV2)`.
+
 ## [1.0.0] — M7 Integration & Release (2026-11-21)
 
 ### Added

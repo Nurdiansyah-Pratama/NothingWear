@@ -8,9 +8,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,21 +23,32 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CalendarViewMonth
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,6 +59,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,8 +67,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -64,6 +83,10 @@ import com.nothingwear.app.core.designsystem.theme.NothingRadius
 import com.nothingwear.app.core.designsystem.theme.NothingSpacing
 import com.nothingwear.app.domain.model.AgendaRange
 import com.nothingwear.app.domain.model.CalendarSource
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun CalendarRoute(
@@ -75,9 +98,14 @@ fun CalendarRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    val permissionLauncher = rememberLauncherForActivityResult(
+    val readPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = viewModel::onPermissionResult,
+    )
+
+    val writePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = viewModel::onWritePermissionResult,
     )
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -87,7 +115,7 @@ fun CalendarRoute(
     CalendarScreen(
         uiState = uiState,
         onRequestPermission = {
-            permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+            readPermissionLauncher.launch(Manifest.permission.READ_CALENDAR)
         },
         onOpenAppSettings = {
             val intent = Intent(
@@ -96,11 +124,45 @@ fun CalendarRoute(
             )
             context.startActivity(intent)
         },
+        onSelectViewMode = viewModel::onSelectViewMode,
         onSelectRange = viewModel::onSelectRange,
+        onPreviousMonth = viewModel::onPreviousMonth,
+        onNextMonth = viewModel::onNextMonth,
+        onJumpToToday = viewModel::onJumpToToday,
+        onSelectDate = viewModel::onSelectDate,
         onSearchQueryChanged = viewModel::onSearchQueryChanged,
         onSyncNow = viewModel::onSyncNow,
         onShowFilterSheet = viewModel::onShowCalendarFilterSheet,
         onToggleCalendar = viewModel::onToggleCalendar,
+        onOpenCreateEventSheet = { date -> viewModel.onOpenCreateEventSheet(date) },
+        onDismissCreateEventSheet = viewModel::onDismissCreateEventSheet,
+        onDraftTitleChanged = viewModel::onDraftTitleChanged,
+        onDraftCalendarSelected = viewModel::onDraftCalendarSelected,
+        onDraftShiftDate = viewModel::onDraftShiftDate,
+        onDraftToggleAllDay = viewModel::onDraftToggleAllDay,
+        onDraftAdjustStartMinutes = viewModel::onDraftAdjustStartMinutes,
+        onDraftAdjustDurationMinutes = viewModel::onDraftAdjustDurationMinutes,
+        onDraftLocationChanged = viewModel::onDraftLocationChanged,
+        onDraftDescriptionChanged = viewModel::onDraftDescriptionChanged,
+        onSaveCreatedEvent = {
+            if (!uiState.hasWritePermission) {
+                viewModel.onPrepareSaveCreatedEventNeedsWritePermission()
+                writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+            } else {
+                viewModel.onSaveCreatedEvent()
+            }
+        },
+        onRequestDeleteEvent = viewModel::onRequestDeleteEvent,
+        onDismissDeleteEvent = viewModel::onDismissDeleteEvent,
+        onConfirmDeleteEvent = {
+            val pending = uiState.pendingDeleteEvent
+            if (pending != null && !uiState.hasWritePermission) {
+                viewModel.onPrepareDeleteNeedsWritePermission(pending)
+                writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+            } else {
+                viewModel.onConfirmDeleteEvent()
+            }
+        },
         onOpenEventDetail = onOpenEventDetail,
         onOpenWatchSync = onOpenWatchSync,
         modifier = modifier,
@@ -113,135 +175,246 @@ fun CalendarScreen(
     uiState: CalendarUiState,
     onRequestPermission: () -> Unit,
     onOpenAppSettings: () -> Unit,
+    onSelectViewMode: (CalendarViewMode) -> Unit,
     onSelectRange: (AgendaRange) -> Unit,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    onJumpToToday: () -> Unit,
+    onSelectDate: (LocalDate) -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onSyncNow: () -> Unit,
     onShowFilterSheet: (Boolean) -> Unit,
     onToggleCalendar: (Long, Boolean) -> Unit,
+    onOpenCreateEventSheet: (LocalDate?) -> Unit,
+    onDismissCreateEventSheet: () -> Unit,
+    onDraftTitleChanged: (String) -> Unit,
+    onDraftCalendarSelected: (Long) -> Unit,
+    onDraftShiftDate: (Long) -> Unit,
+    onDraftToggleAllDay: (Boolean) -> Unit,
+    onDraftAdjustStartMinutes: (Int) -> Unit,
+    onDraftAdjustDurationMinutes: (Int) -> Unit,
+    onDraftLocationChanged: (String) -> Unit,
+    onDraftDescriptionChanged: (String) -> Unit,
+    onSaveCreatedEvent: () -> Unit,
+    onRequestDeleteEvent: (CalendarEventUiModel) -> Unit,
+    onDismissDeleteEvent: () -> Unit,
+    onConfirmDeleteEvent: () -> Unit,
     onOpenEventDetail: (String) -> Unit,
     onOpenWatchSync: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(NothingSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(NothingSpacing.md),
-    ) {
-        item {
-            CalendarHeader(
-                isSyncing = uiState.isSyncing,
-                hasPermission = uiState.hasPermission,
-                selectedCalendars = uiState.syncMetadata.selectedCalendarCount,
-                totalCalendars = uiState.syncMetadata.totalCalendarCount,
-                onOpenFilter = { onShowFilterSheet(true) },
-                onSyncNow = if (uiState.hasPermission) onSyncNow else onRequestPermission,
-            )
-        }
-
-        if (!uiState.hasPermission) {
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = NothingSpacing.md,
+                end = NothingSpacing.md,
+                top = NothingSpacing.md,
+                bottom = 88.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(NothingSpacing.md),
+        ) {
             item {
-                CalendarPermissionCard(
-                    permissionDeniedOnce = uiState.permissionDeniedOnce,
-                    hasCachedEvents = uiState.syncMetadata.cachedEventCount > 0,
-                    onRequestPermission = onRequestPermission,
-                    onOpenAppSettings = onOpenAppSettings,
+                CalendarHeader(
+                    isSyncing = uiState.isSyncing,
+                    hasPermission = uiState.hasPermission,
+                    selectedCalendars = uiState.syncMetadata.selectedCalendarCount,
+                    totalCalendars = uiState.syncMetadata.totalCalendarCount,
+                    onOpenFilter = { onShowFilterSheet(true) },
+                    onSyncNow = if (uiState.hasPermission) onSyncNow else onRequestPermission,
                 )
             }
-        }
 
-        item {
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = onSearchQueryChanged,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = {
-                    Text(
-                        text = "Search title, location, or calendar...",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = null,
-                    )
-                },
-                trailingIcon = {
-                    if (uiState.searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchQueryChanged("") }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Close,
-                                contentDescription = "Clear search",
-                            )
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(NothingRadius.md),
-            )
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
-            ) {
-                AgendaRange.entries.forEach { range ->
-                    RangeChip(
-                        label = range.label.uppercase(),
-                        selected = uiState.selectedRange == range,
-                        onClick = { onSelectRange(range) },
-                        modifier = Modifier.weight(1f),
+            if (!uiState.hasPermission) {
+                item {
+                    CalendarPermissionCard(
+                        permissionDeniedOnce = uiState.permissionDeniedOnce,
+                        hasCachedEvents = uiState.syncMetadata.cachedEventCount > 0,
+                        onRequestPermission = onRequestPermission,
+                        onOpenAppSettings = onOpenAppSettings,
                     )
                 }
             }
-        }
 
-        item {
-            SyncStatusBanner(
-                lastSyncedLabel = uiState.lastSyncedLabel,
-                feedbackMessage = uiState.syncFeedbackMessage,
-                filteredCount = uiState.totalFilteredEvents,
-                onOpenWatchSync = onOpenWatchSync,
-            )
-        }
-
-        if (uiState.groupedEvents.isEmpty()) {
             item {
-                EmptyAgendaCard(
-                    hasPermission = uiState.hasPermission,
-                    hasCalendars = uiState.calendars.isNotEmpty(),
-                    selectedCalendarCount = uiState.syncMetadata.selectedCalendarCount,
-                    searchQuery = uiState.searchQuery,
-                    selectedRange = uiState.selectedRange,
-                    onSyncNow = if (uiState.hasPermission) onSyncNow else onRequestPermission,
-                    onOpenFilter = { onShowFilterSheet(true) },
+                CalendarViewModeBar(
+                    selectedMode = uiState.viewMode,
+                    onSelectMode = onSelectViewMode,
                 )
             }
-        } else {
-            uiState.groupedEvents.forEach { group ->
-                item(key = "header_${group.dateHeader}") {
+
+            item {
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = {
+                        Text(
+                            text = "Search title, location, or calendar...",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Search,
+                            contentDescription = null,
+                        )
+                    },
+                    trailingIcon = {
+                        if (uiState.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchQueryChanged("") }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = "Clear search",
+                                )
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(NothingRadius.md),
+                )
+            }
+
+            item {
+                SyncStatusBanner(
+                    lastSyncedLabel = uiState.lastSyncedLabel,
+                    feedbackMessage = uiState.syncFeedbackMessage,
+                    filteredCount = uiState.totalFilteredEvents,
+                    onOpenWatchSync = onOpenWatchSync,
+                )
+            }
+
+            if (uiState.viewMode == CalendarViewMode.MONTH_GRID) {
+                item {
+                    GoogleStyleMonthGridCard(
+                        monthLabel = uiState.displayedMonthLabel,
+                        cells = uiState.monthCells,
+                        onPreviousMonth = onPreviousMonth,
+                        onNextMonth = onNextMonth,
+                        onJumpToToday = onJumpToToday,
+                        onSelectDate = onSelectDate,
+                    )
+                }
+
+                item {
                     NothingSectionHeader(
-                        title = group.dateHeader,
+                        title = uiState.selectedDateHeader.ifBlank { "SELECTED DAY" },
                         trailingContent = {
-                            Text(
-                                text = "${group.events.size}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            TextButton(
+                                onClick = { onOpenCreateEventSheet(uiState.selectedDate) },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Add Event", style = MaterialTheme.typography.labelMedium)
+                            }
                         },
                     )
                 }
-                items(
-                    items = group.events,
-                    key = { it.instanceKey },
-                ) { event ->
-                    AgendaEventCard(
-                        event = event,
-                        onClick = { onOpenEventDetail(event.instanceKey) },
-                    )
+
+                if (uiState.selectedDateEvents.isEmpty()) {
+                    item {
+                        NothingSurfaceCard(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "No events on this date",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(modifier = Modifier.height(NothingSpacing.xxs))
+                            Text(
+                                text = "Tap + Add Event to create a new event synced directly with Android / Google Calendar.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else {
+                    items(
+                        items = uiState.selectedDateEvents,
+                        key = { "month_${it.instanceKey}" },
+                    ) { event ->
+                        AgendaEventCard(
+                            event = event,
+                            onClick = { onOpenEventDetail(event.instanceKey) },
+                            onDeleteClick = { onRequestDeleteEvent(event) },
+                        )
+                    }
+                }
+            } else {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+                    ) {
+                        AgendaRange.entries.forEach { range ->
+                            RangeChip(
+                                label = range.label.uppercase(),
+                                selected = uiState.selectedRange == range,
+                                onClick = { onSelectRange(range) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+
+                if (uiState.groupedEvents.isEmpty()) {
+                    item {
+                        EmptyAgendaCard(
+                            hasPermission = uiState.hasPermission,
+                            hasCalendars = uiState.calendars.isNotEmpty(),
+                            selectedCalendarCount = uiState.syncMetadata.selectedCalendarCount,
+                            searchQuery = uiState.searchQuery,
+                            selectedRange = uiState.selectedRange,
+                            onSyncNow = if (uiState.hasPermission) onSyncNow else onRequestPermission,
+                            onOpenFilter = { onShowFilterSheet(true) },
+                        )
+                    }
+                } else {
+                    uiState.groupedEvents.forEach { group ->
+                        item(key = "header_${group.dateHeader}") {
+                            NothingSectionHeader(
+                                title = group.dateHeader,
+                                trailingContent = {
+                                    Text(
+                                        text = "${group.events.size}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                            )
+                        }
+                        items(
+                            items = group.events,
+                            key = { it.instanceKey },
+                        ) { event ->
+                            AgendaEventCard(
+                                event = event,
+                                onClick = { onOpenEventDetail(event.instanceKey) },
+                                onDeleteClick = { onRequestDeleteEvent(event) },
+                            )
+                        }
+                    }
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = { onOpenCreateEventSheet(uiState.selectedDate) },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(NothingSpacing.md),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shape = CircleShape,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Add,
+                contentDescription = "Add calendar event",
+            )
         }
     }
 
@@ -255,6 +428,559 @@ fun CalendarScreen(
                 onToggleCalendar = onToggleCalendar,
                 onDismiss = { onShowFilterSheet(false) },
             )
+        }
+    }
+
+    if (uiState.showCreateEventSheet) {
+        ModalBottomSheet(
+            onDismissRequest = onDismissCreateEventSheet,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            CreateEventSheetContent(
+                draft = uiState.createDraft,
+                calendars = uiState.calendars,
+                isSaving = uiState.isMutatingEvent,
+                onTitleChanged = onDraftTitleChanged,
+                onCalendarSelected = onDraftCalendarSelected,
+                onShiftDate = onDraftShiftDate,
+                onToggleAllDay = onDraftToggleAllDay,
+                onAdjustStartMinutes = onDraftAdjustStartMinutes,
+                onAdjustDurationMinutes = onDraftAdjustDurationMinutes,
+                onLocationChanged = onDraftLocationChanged,
+                onDescriptionChanged = onDraftDescriptionChanged,
+                onSave = onSaveCreatedEvent,
+                onDismiss = onDismissCreateEventSheet,
+            )
+        }
+    }
+
+    uiState.pendingDeleteEvent?.let { target ->
+        AlertDialog(
+            onDismissRequest = onDismissDeleteEvent,
+            title = { Text("Delete Event?") },
+            text = {
+                Text(
+                    "Remove \"${target.title}\" from your Android / Google Calendar? This change syncs back to your calendar provider.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = onConfirmDeleteEvent) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissDeleteEvent) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun CalendarViewModeBar(
+    selectedMode: CalendarViewMode,
+    onSelectMode: (CalendarViewMode) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+    ) {
+        CalendarViewMode.entries.forEach { mode ->
+            val selected = mode == selectedMode
+            Surface(
+                onClick = { onSelectMode(mode) },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(NothingRadius.sm),
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surface
+                },
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outline
+                    },
+                ),
+            ) {
+                Row(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = if (mode == CalendarViewMode.MONTH_GRID) {
+                            Icons.Outlined.CalendarViewMonth
+                        } else {
+                            Icons.Outlined.ViewAgenda
+                        },
+                        contentDescription = null,
+                        tint = if (selected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (mode == CalendarViewMode.MONTH_GRID) "MONTH GRID" else "AGENDA LIST",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoogleStyleMonthGridCard(
+    monthLabel: String,
+    cells: List<CalendarMonthCell>,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    onJumpToToday: () -> Unit,
+    onSelectDate: (LocalDate) -> Unit,
+) {
+    val weekdays = listOf("SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT")
+
+    NothingSurfaceCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(NothingSpacing.sm),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onPreviousMonth, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                        contentDescription = "Previous month",
+                    )
+                }
+                Text(
+                    text = monthLabel.uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+                IconButton(onClick = onNextMonth, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = "Next month",
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = onJumpToToday,
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(NothingRadius.sm),
+            ) {
+                Text("Today", style = MaterialTheme.typography.labelSmall)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+
+        // Weekday row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            weekdays.forEach { dayName ->
+                Text(
+                    text = dayName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (dayName == "SUN") {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 6x7 bordered Google Calendar-style grid cells
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(NothingRadius.sm))
+                .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(NothingRadius.sm)),
+        ) {
+            cells.chunked(7).forEach { weekRow ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    weekRow.forEach { cell ->
+                        MonthGridDayCell(
+                            cell = cell,
+                            onClick = { onSelectDate(cell.date) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthGridDayCell(
+    cell: CalendarMonthCell,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val borderColor = if (cell.isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val cellBg = when {
+        cell.isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+        !cell.isCurrentMonth -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        else -> Color.Transparent
+    }
+
+    Column(
+        modifier = modifier
+            .height(72.dp)
+            .background(cellBg)
+            .border(if (cell.isSelected) 1.25.dp else 0.5.dp, borderColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 3.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(
+                    if (cell.isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = cell.date.dayOfMonth.toString(),
+                fontSize = 10.sp,
+                fontWeight = if (cell.isToday || cell.isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = when {
+                    cell.isToday -> MaterialTheme.colorScheme.onPrimary
+                    !cell.isCurrentMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+                maxLines = 1,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        // Render up to 2 mini Google Calendar-style colored event pills inside each date box
+        cell.events.take(2).forEach { event ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 2.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color(event.calendarColor).copy(alpha = 0.88f))
+                    .padding(horizontal = 2.dp, vertical = 1.dp),
+            ) {
+                Text(
+                    text = event.title,
+                    fontSize = 8.sp,
+                    lineHeight = 9.sp,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        if (cell.events.size > 2) {
+            Text(
+                text = "+${cell.events.size - 2}",
+                fontSize = 8.sp,
+                lineHeight = 9.sp,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CreateEventSheetContent(
+    draft: CreateEventDraft,
+    calendars: List<CalendarSource>,
+    isSaving: Boolean,
+    onTitleChanged: (String) -> Unit,
+    onCalendarSelected: (Long) -> Unit,
+    onShiftDate: (Long) -> Unit,
+    onToggleAllDay: (Boolean) -> Unit,
+    onAdjustStartMinutes: (Int) -> Unit,
+    onAdjustDurationMinutes: (Int) -> Unit,
+    onLocationChanged: (String) -> Unit,
+    onDescriptionChanged: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val dateFormatter = DateTimeFormatter.ofPattern("EEE, d MMM yyyy", Locale.getDefault())
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+    val startTime = LocalTime.of(draft.startHour.coerceIn(0, 23), draft.startMinute.coerceIn(0, 59))
+    val endTime = startTime.plusMinutes(draft.durationMinutes.toLong())
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = NothingSpacing.md)
+            .padding(bottom = NothingSpacing.xl),
+        verticalArrangement = Arrangement.spacedBy(NothingSpacing.sm),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = "NEW CALENDAR EVENT",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Saves directly to Android / Google Calendar & Watch Reminder Bridge",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close")
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        OutlinedTextField(
+            value = draft.title,
+            onValueChange = onTitleChanged,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Event Title *") },
+            placeholder = { Text("e.g., Team Sync, Doctor Appointment") },
+            shape = RoundedCornerShape(NothingRadius.sm),
+        )
+
+        if (calendars.isNotEmpty()) {
+            Text(
+                text = "TARGET CALENDAR",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+                verticalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+            ) {
+                calendars.forEach { cal ->
+                    val selected = cal.id == draft.calendarId
+                    Surface(
+                        onClick = { onCalendarSelected(cal.id) },
+                        shape = RoundedCornerShape(NothingRadius.sm),
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(cal.color)),
+                            )
+                            Text(
+                                text = cal.displayName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Date selector stepper
+        NothingSurfaceCard(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = NothingSpacing.sm, vertical = NothingSpacing.xs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "DATE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { onShiftDate(-1) }, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                            contentDescription = "Previous day",
+                        )
+                    }
+                    Text(
+                        text = draft.date.format(dateFormatter),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                    )
+                    IconButton(onClick = { onShiftDate(1) }, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                            contentDescription = "Next day",
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 6.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "All-day event",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Switch(checked = draft.isAllDay, onCheckedChange = onToggleAllDay)
+            }
+
+            if (!draft.isAllDay) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "TIME: ${startTime.format(timeFormatter)} – ${endTime.format(timeFormatter)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedButton(
+                            onClick = { onAdjustStartMinutes(-30) },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            shape = RoundedCornerShape(NothingRadius.sm),
+                        ) { Text("-30m", style = MaterialTheme.typography.labelSmall) }
+                        OutlinedButton(
+                            onClick = { onAdjustStartMinutes(30) },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            shape = RoundedCornerShape(NothingRadius.sm),
+                        ) { Text("+30m", style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "DURATION: ${draft.durationMinutes} min",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedButton(
+                            onClick = { onAdjustDurationMinutes(-30) },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            shape = RoundedCornerShape(NothingRadius.sm),
+                        ) { Text("-30m", style = MaterialTheme.typography.labelSmall) }
+                        OutlinedButton(
+                            onClick = { onAdjustDurationMinutes(30) },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            shape = RoundedCornerShape(NothingRadius.sm),
+                        ) { Text("+30m", style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = draft.location,
+            onValueChange = onLocationChanged,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Location (optional)") },
+            shape = RoundedCornerShape(NothingRadius.sm),
+        )
+
+        OutlinedTextField(
+            value = draft.description,
+            onValueChange = onDescriptionChanged,
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 2,
+            maxLines = 3,
+            label = { Text("Notes / Description (optional)") },
+            shape = RoundedCornerShape(NothingRadius.sm),
+        )
+
+        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+
+        Button(
+            onClick = onSave,
+            enabled = !isSaving && draft.title.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(NothingRadius.sm),
+        ) {
+            if (isSaving) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Saving Event...")
+            } else {
+                Text("Save Event to Calendar")
+            }
         }
     }
 }
@@ -281,7 +1007,7 @@ private fun CalendarHeader(
             )
             Text(
                 text = if (totalCalendars > 0) {
-                    "$selectedCalendars OF $totalCalendars CALENDARS SELECTED · OFFLINE CACHE"
+                    "$selectedCalendars OF $totalCalendars CALENDARS SELECTED · SYNCED CACHE"
                 } else {
                     "ANDROID CALENDAR PROVIDER · LOCAL CACHE"
                 },
@@ -351,14 +1077,14 @@ private fun CalendarPermissionCard(
                 modifier = Modifier.size(18.dp),
             )
             Text(
-                text = "READ_CALENDAR PERMISSION REQUIRED",
+                text = "CALENDAR PERMISSION REQUIRED",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
         Spacer(modifier = Modifier.height(NothingSpacing.xs))
         Text(
-            text = "NothingWear reads calendars synced to Android (including Google Calendar) in strict read-only mode and caches selected events offline using Room. It never modifies your calendars and does not automatically push events to Watch S4.",
+            text = "Grant READ_CALENDAR to display your Google & Android calendars offline. WRITE_CALENDAR is requested on-demand only when you add or delete an event.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -473,7 +1199,7 @@ private fun SyncStatusBanner(
         Text(
             text = feedbackMessage
                 ?: (lastSyncedLabel?.let { "Synced $it · " } ?: "") +
-                    "Tap to configure Watch Reminder Bridge (fallback for WearAuthV2 native Events limit).",
+                    "Tap to configure Watch Reminder Bridge (forwards alerts to Xiaomi Watch S4).",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -484,6 +1210,7 @@ private fun SyncStatusBanner(
 private fun AgendaEventCard(
     event: CalendarEventUiModel,
     onClick: () -> Unit,
+    onDeleteClick: () -> Unit,
 ) {
     NothingSurfaceCard(
         modifier = Modifier.fillMaxWidth(),
@@ -497,6 +1224,7 @@ private fun AgendaEventCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+                modifier = Modifier.weight(1f),
             ) {
                 Box(
                     modifier = Modifier
@@ -509,17 +1237,28 @@ private fun AgendaEventCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
+                Text(
+                    text = "· ${event.calendarName}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Text(
-                text = event.calendarName,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            IconButton(
+                onClick = onDeleteClick,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.DeleteOutline,
+                    contentDescription = "Delete event",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(NothingSpacing.xs))
+        Spacer(modifier = Modifier.height(NothingSpacing.xxs))
 
         Text(
             text = event.title,
@@ -585,7 +1324,7 @@ private fun EmptyAgendaCard(
                     searchQuery.isNotBlank() -> "Try another search keyword or switch to the 30 Days window."
                     hasCalendars && selectedCalendarCount == 0 -> "Enable at least one calendar from the filter menu."
                     !hasPermission -> "Grant READ_CALENDAR permission to fetch Google and local Android calendars."
-                    else -> "Tap Sync to refresh from Android Calendar Provider, or check your selected calendars."
+                    else -> "Tap Sync to refresh from Android Calendar Provider, or tap + to add an event."
                 }
 
                 Text(

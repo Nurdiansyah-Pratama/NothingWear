@@ -39,12 +39,18 @@ object AgendaTimeWindows {
 
     /**
      * Window used when querying Android Calendar Provider Instances.
-     * Pads 1 day before today to avoid missing UTC all-day events across timezone boundaries.
+     * Covers -60 days to +120 days so Month Grid browsing across adjacent months shows real events.
      */
     fun providerFetchWindow(nowMillis: Long, zoneId: ZoneId): TimeWindow {
         val today = Instant.ofEpochMilli(nowMillis).atZone(zoneId).toLocalDate()
-        val startMillis = today.minusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
-        val endMillis = today.plusDays(31).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val startMillis = today.minusDays(60).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val endMillis = today.plusDays(120).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        return TimeWindow(startMillis = startMillis, endMillis = endMillis)
+    }
+
+    fun dayWindow(date: LocalDate, zoneId: ZoneId): TimeWindow {
+        val startMillis = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val endMillis = date.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
         return TimeWindow(startMillis = startMillis, endMillis = endMillis)
     }
 

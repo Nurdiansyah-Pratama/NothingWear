@@ -3,9 +3,11 @@ package com.nothingwear.app.domain.usecase
 import com.nothingwear.app.core.common.TimeProvider
 import com.nothingwear.app.domain.model.AgendaRange
 import com.nothingwear.app.domain.model.CalendarEvent
+import com.nothingwear.app.domain.model.CalendarMutationResult
 import com.nothingwear.app.domain.model.CalendarSource
 import com.nothingwear.app.domain.model.CalendarSyncMetadata
 import com.nothingwear.app.domain.model.CalendarSyncResult
+import com.nothingwear.app.domain.model.CreateCalendarEventInput
 import com.nothingwear.app.domain.repository.CalendarRepository
 import com.nothingwear.app.domain.util.AgendaTimeWindows
 import kotlinx.coroutines.flow.Flow
@@ -70,4 +72,18 @@ class ToggleCalendarSelectionUseCase @Inject constructor(
     suspend operator fun invoke(calendarId: Long, selected: Boolean) {
         repository.setCalendarSelected(calendarId, selected)
     }
+}
+
+class CreateCalendarEventUseCase @Inject constructor(
+    private val repository: CalendarRepository,
+) {
+    suspend operator fun invoke(input: CreateCalendarEventInput): CalendarMutationResult =
+        repository.createEvent(input)
+}
+
+class DeleteCalendarEventUseCase @Inject constructor(
+    private val repository: CalendarRepository,
+) {
+    suspend operator fun invoke(eventId: Long): CalendarMutationResult =
+        repository.deleteEvent(eventId)
 }

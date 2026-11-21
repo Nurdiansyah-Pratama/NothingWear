@@ -14,6 +14,8 @@ import javax.inject.Singleton
 
 fun interface CalendarPermissionChecker {
     fun hasReadCalendarPermission(): Boolean
+
+    fun hasWriteCalendarPermission(): Boolean = hasReadCalendarPermission()
 }
 
 @Singleton
@@ -25,6 +27,12 @@ class AndroidCalendarPermissionChecker @Inject constructor(
         ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.READ_CALENDAR,
+        ) == PackageManager.PERMISSION_GRANTED
+
+    override fun hasWriteCalendarPermission(): Boolean =
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_CALENDAR,
         ) == PackageManager.PERMISSION_GRANTED
 }
 

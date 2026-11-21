@@ -1,5 +1,8 @@
 package com.nothingwear.app.features.calendar
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,15 +22,21 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.WatchOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,13 +54,38 @@ import com.nothingwear.app.core.designsystem.theme.NothingSpacing
 @Composable
 fun EventDetailRoute(
     onBack: () -> Unit,
+    onOpenWatchSync: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: EventDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val writePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = viewModel::onWritePermissionResult,
+    )
+
+    LaunchedEffect(uiState) {
+        if (uiState is EventDetailUiState.Deleted) {
+            onBack()
+        }
+    }
+
     EventDetailScreen(
         uiState = uiState,
         onBack = onBack,
+        onOpenWatchSync = onOpenWatchSync,
+        onRequestDelete = { viewModel.onShowDeleteConfirm(true) },
+        onDismissDelete = { viewModel.onShowDeleteConfirm(false) },
+        onConfirmDelete = {
+            val loaded = uiState as? EventDetailUiState.Loaded
+            if (loaded != null && !loaded.hasWritePermission) {
+                viewModel.onShowDeleteConfirm(false)
+                writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+            } else {
+                viewModel.onConfirmDelete()
+            }
+        },
         modifier = modifier,
     )
 }
@@ -60,39 +94,69 @@ fun EventDetailRoute(
 fun EventDetailScreen(
     uiState: EventDetailUiState,
     onBack: () -> Unit,
+    onOpenWatchSync: () -> Unit = {},
+    onRequestDelete: () -> Unit = {},
+    onDismissDelete: () -> Unit = {},
+    onConfirmDelete: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val loadedState = uiState as? EventDetailUiState.Loaded
+
     Column(modifier = modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = NothingSpacing.xs, vertical = NothingSpacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onBackground,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
+                Text(
+                    text = "EVENT DETAIL",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
                 )
             }
-            Text(
-                text = "EVENT DETAIL",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
+            if (loadedState != null) {
+                IconButton(
+                    onClick = onRequestDelete,
+                    enabled = !loadedState.isDeleting,
+                ) {
+                    if (loadedState.isDeleting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = "Delete event",
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         when (uiState) {
-            EventDetailUiState.Loading -> {
+            EventDetailUiState.Loading, EventDetailUiState.Deleted -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "LOADING EVENT...",
+                        text = if (uiState is EventDetailUiState.Deleted) "EVENT DELETED" else "LOADING EVENT...",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -129,6 +193,22 @@ fun EventDetailScreen(
                     contentPadding = PaddingValues(NothingSpacing.md),
                     verticalArrangement = Arrangement.spacedBy(NothingSpacing.md),
                 ) {
+                    if (!uiState.feedbackMessage.isNullOrBlank()) {
+                        item {
+                            NothingSurfaceCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentPadding = PaddingValues(NothingSpacing.sm),
+                            ) {
+                                Text(
+                                    text = uiState.feedbackMessage,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                )
+                            }
+                        }
+                    }
+
                     item {
                         NothingSurfaceCard(modifier = Modifier.fillMaxWidth()) {
                             Row(
@@ -222,11 +302,12 @@ fun EventDetailScreen(
                     }
 
                     item {
-                        NothingSectionHeader(title = "Storage & Watch Sync Status")
+                        NothingSectionHeader(title = "Storage & Watch Alert Status")
                         Spacer(modifier = Modifier.height(NothingSpacing.xs))
                         NothingSurfaceCard(
                             modifier = Modifier.fillMaxWidth(),
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            onClick = onOpenWatchSync,
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -238,22 +319,52 @@ fun EventDetailScreen(
                                     horizontalArrangement = Arrangement.spacedBy(NothingSpacing.xs),
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.WatchOff,
+                                        imageVector = if (event.bridgeEnabled) {
+                                            Icons.Outlined.NotificationsActive
+                                        } else {
+                                            Icons.Outlined.WatchOff
+                                        },
                                         contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (event.bridgeEnabled) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
                                         modifier = Modifier.size(18.dp),
                                     )
                                     Text(
-                                        text = "Watch S4 Native Events",
+                                        text = "Watch Reminder Bridge",
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
-                                NothingStatusBadge(label = "Not Synced")
+                                NothingStatusBadge(
+                                    label = when {
+                                        event.isScheduledForWatchAlert -> "ALERT QUEUED"
+                                        event.bridgeEnabled -> "BRIDGE ACTIVE"
+                                        else -> "BRIDGE OFF"
+                                    },
+                                    dotColor = if (event.bridgeEnabled) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
                             }
                             Spacer(modifier = Modifier.height(NothingSpacing.xs))
                             Text(
-                                text = "Stored offline on this phone (cached ${event.lastSyncedLabel}). Native Xiaomi Watch S4 Events synchronization requires M3 protocol research and M4 physical verification.",
+                                text = buildString {
+                                    append("Cached offline (${event.lastSyncedLabel}). ")
+                                    when {
+                                        event.isScheduledForWatchAlert ->
+                                            append("Watch alert scheduled (${event.bridgeLeadLabel} before start) via Mi Fitness notifications. ")
+                                        event.bridgeEnabled ->
+                                            append("Reminder Bridge is active (schedules upcoming alerts within 48h). ")
+                                        else ->
+                                            append("Tap to enable Watch Reminder Bridge so alerts forward to Xiaomi Watch S4. ")
+                                    }
+                                    append("Native Watch S4 Events app sync remains UNSUPPORTED due to WearAuthV2.")
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -262,6 +373,28 @@ fun EventDetailScreen(
                 }
             }
         }
+    }
+
+    if (loadedState?.showDeleteConfirm == true) {
+        AlertDialog(
+            onDismissRequest = onDismissDelete,
+            title = { Text("Delete Event?") },
+            text = {
+                Text(
+                    "Remove \"${loadedState.event.title}\" from your Android / Google Calendar? This change syncs back to your calendar provider.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = onConfirmDelete) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissDelete) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }
 

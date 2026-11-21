@@ -11,7 +11,9 @@ import com.nothingwear.app.core.permissions.CalendarPermissionChecker
 import com.nothingwear.app.data.calendar.DeviceCalendarDataSource
 import com.nothingwear.app.data.calendar.RawDeviceCalendar
 import com.nothingwear.app.data.calendar.RawDeviceEventInstance
+import com.nothingwear.app.domain.model.CalendarMutationResult
 import com.nothingwear.app.domain.model.CalendarSyncResult
+import com.nothingwear.app.domain.model.CreateCalendarEventInput
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -135,5 +137,42 @@ class OfflineFirstCalendarRepositoryTest {
         assertTrue(calendarsSlot.captured.first { it.calendarId == 1L }.isSelected)
         assertFalse(calendarsSlot.captured.first { it.calendarId == 2L }.isSelected)
         assertEquals(1, eventsSlot.captured.size)
+    }
+
+    @Test
+    fun createAndDeleteEventRespectWritePermissionAndResyncCache() = runTest {
+        val dao = mockk<CalendarDao>(relaxed = true)
+        val dataSource = mockk<DeviceCalendarDataSource>(relaxed = true)
+        val dataStore = mockk<DataStore<Preferences>>()
+        every { dataStore.data } returns flowOf(emptyPreferences())
+        coEvery { dataStore.updateData(any()) } returns emptyPreferences()
+        coEvery { dataSource.createEvent(any()) } returns 501L
+        coEvery { dataSource.deleteEvent(501L) } returns 1
+        coEvery { dataSource.fetchCalendars() } returns emptyList()
+        coEvery { dataSource.fetchEventInstances(any(), any()) } returns emptyList()
+        coEvery { dao.getAllCalendars() } returns emptyList()
+
+        val repository = OfflineFirstCalendarRepository(
+            calendarDao = dao,
+            deviceCalendarDataSource = dataSource,
+            dataStore = dataStore,
+            permissionChecker = { true },
+            timeProvider = fixedTimeProvider,
+        )
+
+        val created = repository.createEvent(
+            CreateCalendarEventInput(
+                calendarId = 1L,
+                title = "New Meeting",
+                startTimeMillis = 1_763_636_400_000L,
+                endTimeMillis = 1_763_640_000_000L,
+                isAllDay = false,
+                timezone = "Asia/Jakarta",
+            ),
+        )
+        assertEquals(CalendarMutationResult.Created(501L), created)
+
+        val deleted = repository.deleteEvent(501L)
+        assertEquals(CalendarMutationResult.Deleted, deleted)
     }
 }

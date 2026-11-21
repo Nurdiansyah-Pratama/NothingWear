@@ -171,6 +171,7 @@ fun NothingWearApp(
             ) {
                 EventDetailRoute(
                     onBack = { navController.popBackStack() },
+                    onOpenWatchSync = ::openWatchSync,
                 )
             }
             composable(NothingWearDestination.WATCH_FACE_STUDIO.route) {
