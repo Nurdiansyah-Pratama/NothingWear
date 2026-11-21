@@ -28,6 +28,7 @@ import com.nothingwear.app.domain.model.HostPhoneEnvironment
 import com.nothingwear.app.domain.model.LastVerifiedHeartRate
 import com.nothingwear.app.domain.model.MetricAvailabilityStatus
 import com.nothingwear.app.domain.repository.HealthRepository
+import com.nothingwear.app.widget.NothingWearWidgetProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -99,6 +100,7 @@ class AndroidHealthRepository @Inject constructor(
             timestampMillis = timestampMillis,
             sourceLabel = "Watch S4 Live BLE (0x2A37)",
         )
+        runCatching { NothingWearWidgetProvider.requestSyncBroadcast(context) }
     }
 
     private suspend fun persistLastVerifiedHeartRate(

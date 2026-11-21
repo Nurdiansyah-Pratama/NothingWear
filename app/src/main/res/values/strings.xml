@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">NothingWear</string>
+    <string name="widget_description">Nothing-style live widget showing verified Steps, Heart Rate, Sleep, and Next Calendar Event.</string>
 </resources>

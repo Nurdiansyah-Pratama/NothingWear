@@ -4,6 +4,7 @@
 -keep class com.nothingwear.app.core.database.entity.** { *; }
 -keep class com.nothingwear.app.core.database.dao.** { *; }
 -keep class com.nothingwear.app.data.event.CalendarReminderWorker { *; }
+-keep class com.nothingwear.app.widget.NothingWearWidgetProvider { *; }
 
 # Preserve line numbers in crash stack traces (no secrets or PII)
 -keepattributes SourceFile,LineNumberTable

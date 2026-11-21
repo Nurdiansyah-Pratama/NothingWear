@@ -6,6 +6,7 @@ import android.content.Context
 import android.provider.CalendarContract
 import com.nothingwear.app.core.common.IoDispatcher
 import com.nothingwear.app.domain.model.CreateCalendarEventInput
+import com.nothingwear.app.widget.NothingWearWidgetProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -200,12 +201,18 @@ class AndroidCalendarDataSource @Inject constructor(
         }
         val insertedUri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
             ?: throw IllegalStateException("Android Calendar Provider rejected event insert.")
-        ContentUris.parseId(insertedUri)
+        val createdId = ContentUris.parseId(insertedUri)
+        runCatching { NothingWearWidgetProvider.requestSyncBroadcast(context) }
+        createdId
     }
 
     override suspend fun deleteEvent(eventId: Long): Int = withContext(ioDispatcher) {
         val deleteUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
-        context.contentResolver.delete(deleteUri, null, null)
+        val deleted = context.contentResolver.delete(deleteUri, null, null)
+        if (deleted > 0) {
+            runCatching { NothingWearWidgetProvider.requestSyncBroadcast(context) }
+        }
+        deleted
     }
 
     private companion object {

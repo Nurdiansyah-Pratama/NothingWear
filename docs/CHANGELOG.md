@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.0] — NothingWear Home Screen Widget (2026-11-21)
+
+### Added
+- Added resizable 4×2 **NothingWear Live Home Screen Widget** (`NothingWearWidgetProvider`, `NothingWearWidgetUpdater`, `WidgetSnapshotFormatter`, `widget_nothingwear.xml`) displaying verified Steps, Heart Rate, Sleep, and Next Calendar Event in Nothing's dark OLED monospace aesthetic with a 1-tap `SYNC` button.
+- Added 1-tap **Add Widget to Home Screen** (`AppWidgetManager.requestPinAppWidget`) card in `SettingsScreen`, automatic widget sync broadcasts on Calendar create/delete and BLE Heart Rate updates, and `WidgetSnapshotFormatterTest`.
+
 ## [1.1.0] — Calendar Month Grid, Add/Delete Events & Event Detail Bridge Status (2026-11-21)
 
 ### Added

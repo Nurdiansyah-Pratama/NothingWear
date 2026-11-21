@@ -1,5 +1,7 @@
 package com.nothingwear.app.features.settings
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -27,6 +29,8 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.outlined.Widgets
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +60,7 @@ import com.nothingwear.app.core.designsystem.theme.NothingSpacing
 import com.nothingwear.app.core.designsystem.theme.toAccentSpec
 import com.nothingwear.app.domain.model.AccentColorOption
 import com.nothingwear.app.domain.model.ThemeMode
+import com.nothingwear.app.widget.NothingWearWidgetProvider
 
 @Composable
 fun SettingsRoute(
@@ -71,6 +76,7 @@ fun SettingsRoute(
     }
 
     var isBatteryUnrestricted by remember { mutableStateOf(checkIgnoringBatteryOptimizations()) }
+    var widgetPinStatus by remember { mutableStateOf<String?>(null) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isBatteryUnrestricted = checkIgnoringBatteryOptimizations()
@@ -79,6 +85,22 @@ fun SettingsRoute(
     SettingsScreen(
         uiState = uiState,
         isBatteryUnrestricted = isBatteryUnrestricted,
+        widgetPinStatus = widgetPinStatus,
+        onPinHomeWidget = {
+            val manager = AppWidgetManager.getInstance(context)
+            val provider = ComponentName(context, NothingWearWidgetProvider::class.java)
+            if (manager.isRequestPinAppWidgetSupported) {
+                val requested = manager.requestPinAppWidget(provider, null, null)
+                widgetPinStatus = if (requested) {
+                    "Widget pin prompt sent — confirm on your Infinix home screen."
+                } else {
+                    "Long-press your home screen → Widgets → NothingWear Live."
+                }
+            } else {
+                widgetPinStatus = "Long-press your home screen → Widgets → NothingWear Live (4×2)."
+            }
+            NothingWearWidgetProvider.requestSyncBroadcast(context)
+        },
         onOpenBatteryOptimizationSettings = {
             val batteryIntent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
             runCatching { context.startActivity(batteryIntent) }
@@ -110,6 +132,8 @@ fun SettingsScreen(
     onSelectAccentColor: (AccentColorOption) -> Unit,
     modifier: Modifier = Modifier,
     isBatteryUnrestricted: Boolean = false,
+    widgetPinStatus: String? = null,
+    onPinHomeWidget: () -> Unit = {},
     onOpenBatteryOptimizationSettings: () -> Unit = {},
     onOpenAppDetailsSettings: () -> Unit = {},
 ) {
@@ -184,6 +208,61 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        item {
+            NothingSectionHeader(
+                title = "Home Screen Widget (4×2)",
+                trailingContent = {
+                    NothingStatusBadge(
+                        label = "LIVE SYNC",
+                        dotColor = MaterialTheme.colorScheme.primary,
+                    )
+                },
+            )
+            Spacer(modifier = Modifier.height(NothingSpacing.xs))
+            NothingSurfaceCard {
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(NothingSpacing.sm),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Widgets,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "NothingWear Live Widget",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Spacer(modifier = Modifier.height(NothingSpacing.xxs))
+                        Text(
+                            text = "Displays verified Steps, Heart Rate, Sleep, and your Next Calendar Event directly on your Infinix home screen with 1-tap SYNC.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (!widgetPinStatus.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(NothingSpacing.xs))
+                    Text(
+                        text = widgetPinStatus,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Spacer(modifier = Modifier.height(NothingSpacing.sm))
+                Button(
+                    onClick = onPinHomeWidget,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(NothingRadius.sm),
+                ) {
+                    Text("Add Widget to Home Screen")
                 }
             }
         }

@@ -85,6 +85,20 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <!-- NothingWear Home Screen Widget (4x2) -->
+        <receiver
+            android:name=".widget.NothingWearWidgetProvider"
+            android:exported="true"
+            android:label="NothingWear Live">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.nothingwear.app.widget.ACTION_REFRESH_WIDGET" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/nothingwear_widget_info" />
+        </receiver>
     </application>
 
 </manifest>
