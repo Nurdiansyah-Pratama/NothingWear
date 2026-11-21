@@ -40,3 +40,10 @@ class SendTestWatchAlertUseCase @Inject constructor(
     suspend operator fun invoke(): BridgeActionResult =
         repository.sendTestWatchAlert()
 }
+
+class ScheduleDelayedTestWatchAlertUseCase @Inject constructor(
+    private val repository: EventSyncRepository,
+) {
+    suspend operator fun invoke(delaySeconds: Int = 10): BridgeActionResult =
+        repository.scheduleDelayedTestWatchAlert(delaySeconds)
+}

@@ -15,4 +15,6 @@ interface EventSyncRepository {
     suspend fun rescheduleUpcomingReminders(): BridgeActionResult
 
     suspend fun sendTestWatchAlert(): BridgeActionResult
+
+    suspend fun scheduleDelayedTestWatchAlert(delaySeconds: Int = 10): BridgeActionResult
 }

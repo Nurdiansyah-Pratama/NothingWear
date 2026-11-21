@@ -8,6 +8,7 @@ import com.nothingwear.app.domain.model.BridgeActionResult
 import com.nothingwear.app.domain.model.ReminderLeadTime
 import com.nothingwear.app.domain.usecase.ObserveEventSyncOverviewUseCase
 import com.nothingwear.app.domain.usecase.RescheduleWatchRemindersUseCase
+import com.nothingwear.app.domain.usecase.ScheduleDelayedTestWatchAlertUseCase
 import com.nothingwear.app.domain.usecase.SendTestWatchAlertUseCase
 import com.nothingwear.app.domain.usecase.SetReminderBridgeEnabledUseCase
 import com.nothingwear.app.domain.usecase.SetReminderLeadTimeUseCase
@@ -29,6 +30,7 @@ class EventSyncViewModel @Inject constructor(
     private val setReminderLeadTime: SetReminderLeadTimeUseCase,
     private val rescheduleWatchReminders: RescheduleWatchRemindersUseCase,
     private val sendTestWatchAlert: SendTestWatchAlertUseCase,
+    private val scheduleDelayedTestWatchAlert: ScheduleDelayedTestWatchAlertUseCase,
     private val notificationPermissionChecker: NotificationPermissionChecker,
     private val timeProvider: TimeProvider,
 ) : ViewModel() {
@@ -116,6 +118,12 @@ class EventSyncViewModel @Inject constructor(
         }
     }
 
+    fun onScheduleDelayedTestWatchAlert() {
+        viewModelScope.launch {
+            handleActionResult(scheduleDelayedTestWatchAlert(delaySeconds = 10))
+        }
+    }
+
     private fun handleActionResult(result: BridgeActionResult) {
         val message = when (result) {
             is BridgeActionResult.Scheduled ->
@@ -125,7 +133,10 @@ class EventSyncViewModel @Inject constructor(
                 "Watch Reminder Bridge disabled. All scheduled reminders cleared."
 
             BridgeActionResult.TestNotificationSent ->
-                "Test alert posted! Check your Xiaomi Watch S4 (ensure NothingWear is enabled in Mi Fitness App Notifications)."
+                "Test alert posted! If Mi Fitness uses 'Only notify when phone is locked', tap 'Test in 10s' and lock your screen."
+
+            is BridgeActionResult.DelayedTestScheduled ->
+                "Lock your phone screen NOW — test alert will fire in ${result.delaySeconds}s so Mi Fitness forwards it to Watch S4."
 
             BridgeActionResult.NotificationPermissionRequired ->
                 "Grant POST_NOTIFICATIONS permission first to enable watch alerts."

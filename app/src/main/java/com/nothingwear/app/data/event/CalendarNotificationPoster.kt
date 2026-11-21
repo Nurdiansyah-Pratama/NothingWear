@@ -12,6 +12,10 @@ import com.nothingwear.app.MainActivity
 import com.nothingwear.app.R
 import com.nothingwear.app.core.permissions.NotificationPermissionChecker
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +28,8 @@ class CalendarNotificationPoster @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val permissionChecker: NotificationPermissionChecker,
 ) {
+    private val testIdCounter = AtomicInteger(TEST_NOTIFICATION_ID_BASE)
+    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.getDefault())
 
     fun ensureChannel() {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -78,7 +84,11 @@ class CalendarNotificationPoster @Inject constructor(
             .setContentText(bodyText)
             .setStyle(NotificationCompat.BigTextStyle().bigText(bodyText))
             .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(true)
+            .setOnlyAlertOnce(false)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
@@ -87,17 +97,20 @@ class CalendarNotificationPoster @Inject constructor(
         return true
     }
 
-    fun postTestWatchAlert(): Boolean = postReminder(
-        notificationId = TEST_NOTIFICATION_ID,
-        title = "NothingWear Watch Test Alert",
-        timeRangeLabel = "Verified Bridge Check",
-        calendarName = "Xiaomi Watch S4",
-        location = "Enable NothingWear in Mi Fitness Notifications",
-    )
+    fun postTestWatchAlert(): Boolean {
+        val nowTag = LocalTime.now().format(timeFormatter)
+        return postReminder(
+            notificationId = testIdCounter.getAndIncrement(),
+            title = "Calendar Alert · $nowTag",
+            timeRangeLabel = "NothingWear Bridge Test",
+            calendarName = "Xiaomi Watch S4",
+            location = "Forwarded via Mi Fitness",
+        )
+    }
 
     companion object {
         const val CHANNEL_ID = "nothingwear_calendar_reminders"
         const val CHANNEL_NAME = "Calendar Watch Reminders"
-        private const val TEST_NOTIFICATION_ID = 40_001
+        private const val TEST_NOTIFICATION_ID_BASE = 40_001
     }
 }

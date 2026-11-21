@@ -184,6 +184,33 @@ class WatchEventSyncRepository @Inject constructor(
         }
     }
 
+    override suspend fun scheduleDelayedTestWatchAlert(delaySeconds: Int): BridgeActionResult {
+        if (!notificationPermissionChecker.hasPostNotificationsPermission()) {
+            return BridgeActionResult.NotificationPermissionRequired
+        }
+        notificationPoster.ensureChannel()
+        val uniqueId = (timeProvider.nowMillis() % Int.MAX_VALUE).toInt()
+        val request = OneTimeWorkRequestBuilder<CalendarReminderWorker>()
+            .setInitialDelay(delaySeconds.toLong(), TimeUnit.SECONDS)
+            .addTag(CalendarReminderWorker.WORK_TAG)
+            .setInputData(
+                workDataOf(
+                    CalendarReminderWorker.KEY_TITLE to "Watch S4 Lockscreen Test",
+                    CalendarReminderWorker.KEY_TIME_RANGE to "Delayed ${delaySeconds}s Bridge Test",
+                    CalendarReminderWorker.KEY_CALENDAR_NAME to "NothingWear",
+                    CalendarReminderWorker.KEY_LOCATION to "Mi Fitness NotifySyncService",
+                    CalendarReminderWorker.KEY_NOTIFICATION_ID to uniqueId,
+                ),
+            )
+            .build()
+        workManager.enqueueUniqueWork(
+            "nw_delayed_test_alert",
+            ExistingWorkPolicy.REPLACE,
+            request,
+        )
+        return BridgeActionResult.DelayedTestScheduled(delaySeconds)
+    }
+
     private fun cancelAllScheduledReminders() {
         workManager.cancelAllWorkByTag(CalendarReminderWorker.WORK_TAG)
     }

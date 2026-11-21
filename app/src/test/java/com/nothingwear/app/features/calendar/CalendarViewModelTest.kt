@@ -122,6 +122,8 @@ class CalendarViewModelTest {
             override suspend fun setReminderLeadTime(leadTime: ReminderLeadTime) = BridgeActionResult.Scheduled(0)
             override suspend fun rescheduleUpcomingReminders() = BridgeActionResult.Scheduled(0)
             override suspend fun sendTestWatchAlert() = BridgeActionResult.TestNotificationSent
+            override suspend fun scheduleDelayedTestWatchAlert(delaySeconds: Int) =
+                BridgeActionResult.DelayedTestScheduled(delaySeconds)
         }
 
         val viewModel = CalendarViewModel(

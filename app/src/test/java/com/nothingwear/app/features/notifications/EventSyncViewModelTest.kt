@@ -9,6 +9,7 @@ import com.nothingwear.app.domain.model.ReminderLeadTime
 import com.nothingwear.app.domain.repository.EventSyncRepository
 import com.nothingwear.app.domain.usecase.ObserveEventSyncOverviewUseCase
 import com.nothingwear.app.domain.usecase.RescheduleWatchRemindersUseCase
+import com.nothingwear.app.domain.usecase.ScheduleDelayedTestWatchAlertUseCase
 import com.nothingwear.app.domain.usecase.SendTestWatchAlertUseCase
 import com.nothingwear.app.domain.usecase.SetReminderBridgeEnabledUseCase
 import com.nothingwear.app.domain.usecase.SetReminderLeadTimeUseCase
@@ -65,6 +66,7 @@ class EventSyncViewModelTest {
             setReminderLeadTime = SetReminderLeadTimeUseCase(fakeRepo),
             rescheduleWatchReminders = RescheduleWatchRemindersUseCase(fakeRepo),
             sendTestWatchAlert = SendTestWatchAlertUseCase(fakeRepo),
+            scheduleDelayedTestWatchAlert = ScheduleDelayedTestWatchAlertUseCase(fakeRepo),
             notificationPermissionChecker = permChecker,
             timeProvider = fixedTime,
         )
@@ -119,5 +121,8 @@ class EventSyncViewModelTest {
 
         override suspend fun sendTestWatchAlert(): BridgeActionResult =
             BridgeActionResult.TestNotificationSent
+
+        override suspend fun scheduleDelayedTestWatchAlert(delaySeconds: Int): BridgeActionResult =
+            BridgeActionResult.DelayedTestScheduled(delaySeconds)
     }
 }

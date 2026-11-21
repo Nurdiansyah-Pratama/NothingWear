@@ -46,6 +46,7 @@ sealed interface BridgeActionResult {
     data class Scheduled(val count: Int) : BridgeActionResult
     data object Cleared : BridgeActionResult
     data object TestNotificationSent : BridgeActionResult
+    data class DelayedTestScheduled(val delaySeconds: Int) : BridgeActionResult
     data object NotificationPermissionRequired : BridgeActionResult
     data class Failed(val message: String) : BridgeActionResult
 }

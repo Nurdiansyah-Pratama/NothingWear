@@ -131,6 +131,13 @@ fun EventSyncRoute(
                 viewModel.onSendTestWatchAlert()
             }
         },
+        onScheduleDelayedTestWatchAlert = {
+            if (!uiState.hasNotificationPermission) {
+                requestNotificationPermission(enableAfter = false)
+            } else {
+                viewModel.onScheduleDelayedTestWatchAlert()
+            }
+        },
         modifier = modifier,
     )
 }
@@ -145,6 +152,7 @@ fun EventSyncScreen(
     onSelectLeadTime: (ReminderLeadTime) -> Unit,
     onRescheduleNow: () -> Unit,
     onSendTestWatchAlert: () -> Unit,
+    onScheduleDelayedTestWatchAlert: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -405,7 +413,14 @@ fun EventSyncScreen(
                                 modifier = Modifier.size(16.dp),
                             )
                             Spacer(modifier = Modifier.size(6.dp))
-                            Text(text = "Test Watch Alert")
+                            Text(text = "Test Now")
+                        }
+                        OutlinedButton(
+                            onClick = onScheduleDelayedTestWatchAlert,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(NothingRadius.sm),
+                        ) {
+                            Text(text = "Test in 10s (Lock)")
                         }
                         OutlinedButton(
                             onClick = onRescheduleNow,
@@ -520,9 +535,10 @@ fun EventSyncScreen(
                     }
                     Spacer(modifier = Modifier.height(NothingSpacing.xs))
                     Text(
-                        text = "1. Open Mi Fitness → Device → Notifications → App notifications → enable NothingWear.\n" +
-                            "2. In Infinix XOS 15 Settings → App Management → NothingWear → Battery → set Unrestricted so background reminders fire on time.\n" +
-                            "3. Tap 'Test Watch Alert' above and confirm the alert vibrates on your Xiaomi Watch S4.",
+                        text = "1. Open Mi Fitness → Device → Notifications → App notifications → turn ON App notifications AND enable NothingWear.\n" +
+                            "2. Important: Mi Fitness defaults to 'Only receive when phone is locked' — either turn that off OR tap 'Test in 10s (Lock)' above and immediately lock your phone screen.\n" +
+                            "3. Confirm Watch S4 is Connected in Mi Fitness and DND / Sleep mode is OFF on the watch.\n" +
+                            "4. In Infinix XOS 15 App Management → NothingWear → Battery → set Unrestricted.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
